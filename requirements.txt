@@ -1,7 +1,9 @@
-Django==5.1
-pytesseract
 opencv-python
 python-docx
 weasyprint
-requests
-Pillowgunicorn==23.0.0
+Django>=5.1,<5.2
+Pillow==12.0.0
+gunicorn==23.0.0
+requests==2.32.5
+pytesseract==0.3.10
+# Any other packages from your Poetry export...
