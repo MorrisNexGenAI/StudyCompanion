@@ -1,0 +1,24 @@
+# Database
+db.sqlite3
+
+# Uploaded images & temp files
+media/
+*.jpg
+*.jpeg
+*.png
+*.pdf
+
+# Django
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+staticfiles/
+
+# Virtual env
+venv/
+env/
+ENV/
+
+# VSCode
+.vscode/
