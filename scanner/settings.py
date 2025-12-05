@@ -17,14 +17,12 @@ SECRET_KEY = os.environ.get(
 
 # PythonAnywhere automatically sets DEBUG=False in production
 # But you can override it in the .env or here for testing
-DEBUG = False
+DEBUG = True
 
 # PythonAnywhere gives you a domain like username.pythonanywhere.com
 # Add your custom domain later if you buy one
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    f"{os.environ.get('USER')}.pythonanywhere.com",   # ← auto-detects your PA username
+    '*'  
 ]
 
 # If you have a custom domain, add it here manually:
