@@ -1,0 +1,57 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold text-indigo-600">📚 My Notes Library</h1>
+        <a href="{% url 'home' %}" class="text-gray-600 hover:text-gray-800">← Back</a>
+    </div>
+    
+    <!-- Create New Course Button -->
+    <div class="mb-6">
+        <a href="{% url 'create_course' %}" 
+           class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
+            ➕ Create New Course
+        </a>
+    </div>
+    
+    <!-- Courses List -->
+    {% if courses %}
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for course in courses %}
+        <a href="{% url 'course_detail' course.id %}" class="block">
+            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-6 hover:shadow-lg transition transform hover:-translate-y-1">
+                <h3 class="text-xl font-bold text-indigo-800 mb-2">{{ course.name }}</h3>
+                {% if course.subject %}
+                <p class="text-gray-600 mb-3">{{ course.subject }}</p>
+                {% endif %}
+                
+                <div class="flex items-center gap-4 text-sm">
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                        {{ course.get_total_topics }} topic{{ course.get_total_topics|pluralize }}
+                    </span>
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                        {{ course.get_refined_count }} refined
+                    </span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-8 text-center">
+        <p class="text-xl text-gray-600 mb-4">No courses yet!</p>
+        <p class="text-gray-500 mb-6">Start by scanning some pages or creating a new course.</p>
+        <div class="space-x-3">
+            <a href="{% url 'scan_new' %}" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg">
+                📸 Scan Pages
+            </a>
+            <a href="{% url 'create_course' %}" class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
+                ➕ Create Course
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

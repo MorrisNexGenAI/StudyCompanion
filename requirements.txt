@@ -1,0 +1,7 @@
+Django==5.1
+pytesseract
+opencv-python
+python-docx
+weasyprint
+requests
+Pillow

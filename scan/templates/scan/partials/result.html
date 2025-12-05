@@ -1,0 +1,64 @@
+<div class="bg-green-50 border-2 border-green-200 rounded-xl p-6 mb-4">
+  <h2 class="text-2xl font-bold text-green-800 mb-4">✓ Processing Complete!</h2>
+  
+  <!-- Stats -->
+  <div class="bg-white rounded-lg p-4 mb-4">
+    <p class="text-gray-700"><strong>Pages Processed:</strong> {{ doc.pages_count }}</p>
+    <p class="text-gray-700"><strong>Text Length:</strong> {{ doc.extracted_text|length }} characters</p>
+  </div>
+  
+  <!-- SHOW EXTRACTED TEXT (for debugging) -->
+  <details class="bg-white rounded-lg p-4 mb-4 cursor-pointer">
+    <summary class="font-bold text-blue-600 cursor-pointer">📄 View Extracted Text (Click to expand)</summary>
+    <div class="mt-3 p-3 bg-gray-50 rounded border max-h-64 overflow-y-auto">
+      <pre class="text-xs whitespace-pre-wrap">{{ doc.extracted_text }}</pre>
+    </div>
+  </details>
+  
+  <!-- AI Summary -->
+  {% if ai.summary %}
+  <div class="bg-white rounded-lg p-6 mb-6 border-2 border-indigo-300">
+    <h3 class="font-bold mb-4 text-2xl text-indigo-600">📝 Study Summary</h3>
+    <div class="prose prose-sm max-w-none whitespace-pre-wrap">{{ ai.summary }}</div>
+  </div>
+  {% endif %}
+  
+  <!-- Manual Option (if AI failed or quality bad) -->
+  <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-4">
+    <h3 class="font-bold text-yellow-800 mb-2">💡 Manual Processing Option</h3>
+    <p class="text-sm text-yellow-700 mb-3">
+      If the AI summary isn't good, copy the extracted text and use ChatGPT/Claude for better results.
+    </p>
+    <button onclick="copyExtractedText()" 
+            class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg">
+      📋 Copy Extracted Text for ChatGPT
+    </button>
+  </div>
+  
+  <!-- Action Buttons -->
+  <div class="space-y-3">
+    <button onclick="window.print()" 
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg text-lg">
+      🖨️ Print Summary
+    </button>
+    
+    <button onclick="location.reload()" 
+            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
+      ➕ Process Another Pamphlet
+    </button>
+  </div>
+</div>
+
+<textarea id="fullText" class="hidden">{{ doc.extracted_text }}</textarea>
+
+<script>
+function copyExtractedText() {
+  const text = document.getElementById('fullText');
+  text.classList.remove('hidden');
+  text.select();
+  document.execCommand('copy');
+  text.classList.add('hidden');
+  
+  alert('✓ Text copied! Open ChatGPT or Claude and paste it with this prompt:\n\n"Summarize these student notes with key points and practice questions"');
+}
+</script>

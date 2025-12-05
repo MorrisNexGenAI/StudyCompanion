@@ -1,0 +1,50 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <p class="text-sm text-gray-600 mb-1">{{ topic.course.name }}</p>
+            <h1 class="text-2xl font-bold text-indigo-600">{% if topic.refined_summary %}Edit{% else %}Add{% endif %} Refined Summary</h1>
+            <p class="text-gray-600">{{ topic.title }}</p>
+        </div>
+        <a href="{% url 'topic_detail' topic.id %}" class="text-gray-600 hover:text-gray-800">← Cancel</a>
+    </div>
+    
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 mb-6">
+        <h3 class="font-bold text-blue-800 mb-2">📝 How to Add Refined Summary:</h3>
+        <ol class="text-sm text-blue-700 space-y-1">
+            <li>1. Go back and copy your raw text</li>
+            <li>2. Open ChatGPT (click button below)</li>
+            <li>3. Paste and ask: "Summarize with key points and questions"</li>
+            <li>4. Copy ChatGPT's response</li>
+            <li>5. Paste here and save</li>
+        </ol>
+        <a href="https://chat.openai.com" target="_blank" 
+           class="inline-block mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm">
+            🔗 Open ChatGPT
+        </a>
+    </div>
+    
+    <form method="POST" action="{% url 'edit_refined_summary' topic.id %}">
+        {% csrf_token %}
+        
+        <div class="mb-4">
+            <label class="block text-sm font-bold mb-2">Refined Summary from ChatGPT</label>
+            <textarea name="refined_summary" rows="20" 
+                      class="w-full p-4 border-2 border-gray-300 rounded-lg font-mono text-sm"
+                      placeholder="Paste ChatGPT summary here...">{{ topic.refined_summary }}</textarea>
+        </div>
+        
+        <div class="flex gap-3">
+            <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg text-lg">
+                💾 Save
+            </button>
+            <a href="{% url 'topic_detail' topic.id %}" 
+               class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-4 px-6 rounded-lg">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

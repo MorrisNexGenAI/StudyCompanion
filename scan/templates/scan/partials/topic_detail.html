@@ -1,0 +1,104 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <p class="text-sm text-gray-600 mb-1">{{ topic.course.name }}</p>
+            <h1 class="text-3xl font-bold text-indigo-600">{{ topic.title }}</h1>
+            {% if topic.page_range %}
+            <p class="text-gray-600">📄 {{ topic.page_range }}</p>
+            {% endif %}
+        </div>
+        <a href="{% url 'course_detail' topic.course.id %}" class="text-gray-600 hover:text-gray-800">← Back</a>
+    </div>
+    
+    <div class="mb-6">
+        <span class="inline-block text-lg {% if topic.is_refined %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %} px-4 py-2 rounded-full font-bold">
+            {{ topic.get_status }}
+        </span>
+    </div>
+    
+    <div class="mb-6">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xl font-bold text-gray-800">📝 Raw Extracted Text</h2>
+            <button onclick="copyRawText()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm">
+                📋 Copy
+            </button>
+        </div>
+        <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 max-h-96 overflow-y-auto">
+            <pre class="text-sm whitespace-pre-wrap">{{ topic.raw_text }}</pre>
+        </div>
+    </div>
+    
+    <div class="mb-6">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xl font-bold text-gray-800">✨ Refined Summary</h2>
+            <a href="{% url 'edit_refined_summary' topic.id %}" 
+               class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm">
+                {% if topic.is_refined %}✏️ Edit{% else %}➕ Add{% endif %}
+            </a>
+        </div>
+        
+        {% if topic.refined_summary %}
+        <div class="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-3">
+            <pre class="whitespace-pre-wrap">{{ topic.refined_summary }}</pre>
+        </div>
+        <button onclick="copyRefinedText()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
+            📋 Copy Refined Summary
+        </button>
+        {% else %}
+        <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6 text-center">
+            <p class="text-yellow-800 mb-4 font-semibold">No refined summary yet</p>
+            <ol class="text-left text-sm text-yellow-700 mb-4 max-w-md mx-auto space-y-2">
+                <li>1️⃣ Copy raw text above</li>
+                <li>2️⃣ Open ChatGPT and paste</li>
+                <li>3️⃣ Ask for summary with key points</li>
+                <li>4️⃣ Copy ChatGPT's response</li>
+                <li>5️⃣ Click "Add" and paste here</li>
+            </ol>
+            <a href="https://chat.openai.com" target="_blank" 
+               class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg mb-3">
+                🔗 Open ChatGPT
+            </a>
+            <a href="{% url 'edit_refined_summary' topic.id %}" 
+               class="block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg max-w-md mx-auto">
+                ➕ Add Refined Summary
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="mt-6 pt-6 border-t">
+        <form method="POST" action="{% url 'delete_topic' topic.id %}" onsubmit="return confirm('Delete this topic?');">
+            {% csrf_token %}
+            <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-semibold">
+                🗑️ Delete Topic
+            </button>
+        </form>
+    </div>
+</div>
+
+<textarea id="rawText" class="hidden">{{ topic.raw_text }}</textarea>
+<textarea id="refinedText" class="hidden">{{ topic.refined_summary }}</textarea>
+
+<script>
+function copyRawText() {
+    const text = document.getElementById('rawText');
+    text.classList.remove('hidden');
+    text.select();
+    document.execCommand('copy');
+    text.classList.add('hidden');
+    alert('✓ Raw text copied!');
+}
+
+function copyRefinedText() {
+    const text = document.getElementById('refinedText');
+    text.classList.remove('hidden');
+    text.select();
+    document.execCommand('copy');
+    text.classList.add('hidden');
+    alert('✓ Refined summary copied!');
+}
+</script>
+{% endblock %}

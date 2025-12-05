@@ -1,0 +1,73 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-indigo-600">{{ course.name }} - Full Summary</h1>
+            {% if course.subject %}
+            <p class="text-gray-600">{{ course.subject }}</p>
+            {% endif %}
+        </div>
+        <a href="{% url 'course_detail' course.id %}" class="text-gray-600 hover:text-gray-800">← Back</a>
+    </div>
+    
+    <div class="grid md:grid-cols-3 gap-3 mb-6">
+        <button onclick="copyFullSummary()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
+            📋 Copy All
+        </button>
+        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
+            🖨️ Print
+        </button>
+        <button onclick="downloadText()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg">
+            💾 Download
+        </button>
+    </div>
+    
+    <div class="bg-green-50 border-2 border-green-300 rounded-xl p-4 mb-6">
+        <p class="text-sm text-green-800">
+            <strong>✓ Ready!</strong> Combines {{ course.get_refined_count }} refined topic(s). Copy and paste into Word.
+        </p>
+    </div>
+    
+    <div id="summaryContent" class="bg-white border-2 border-gray-200 rounded-xl p-6">
+        <pre class="whitespace-pre-wrap font-sans text-sm leading-relaxed">{{ full_text }}</pre>
+    </div>
+    
+    {% if course.get_refined_count == 0 %}
+    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6 text-center mt-6">
+        <p class="text-yellow-800 mb-3">No refined summaries yet</p>
+        <a href="{% url 'course_detail' course.id %}" 
+           class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg">
+            Go Back
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<textarea id="fullText" class="hidden">{{ full_text }}</textarea>
+
+<script>
+function copyFullSummary() {
+    const text = document.getElementById('fullText');
+    text.classList.remove('hidden');
+    text.select();
+    document.execCommand('copy');
+    text.classList.add('hidden');
+    alert('✓ Full summary copied! Paste into Word.');
+}
+
+function downloadText() {
+    const text = document.getElementById('fullText').value;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ course.name|slugify }}_summary.txt';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+}
+</script>
+{% endblock %}

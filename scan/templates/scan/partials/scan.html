@@ -1,0 +1,192 @@
+{% extends "scan/partials/base.html" %}
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-bold text-indigo-600">📸 Scan New Pages</h1>
+    <a href="{% url 'home' %}" class="text-gray-600 hover:text-gray-800">← Back</a>
+  </div>
+
+  <!-- Permission Instructions -->
+  <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mb-4">
+    <p class="text-sm text-yellow-800">
+      <strong>📱 Photo Tips:</strong><br>
+      • Good lighting, hold steady, flat page<br>
+      • You can use phone's camera app, then upload photos<br>
+      • Multiple pages = one topic
+    </p>
+  </div>
+  
+  <!-- Scan Session -->
+  <div id="scanSession" class="mb-6">
+    <div class="bg-indigo-50 rounded-xl p-6 mb-4">
+      <h2 class="text-2xl font-bold text-indigo-800 mb-4">Add Pages</h2>
+      
+      <!-- Pages Counter -->
+      <div class="bg-white rounded-lg p-4 mb-4">
+        <p class="text-lg font-semibold">Pages Added: <span id="pageCount" class="text-indigo-600">0</span></p>
+      </div>
+      
+      <!-- File Inputs (Hidden) -->
+      <input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden">
+      <input type="file" id="galleryInput" accept="image/*" multiple class="hidden">
+      
+      <!-- Action Buttons -->
+      <div class="space-y-3 mb-4">
+        <!-- Take Photo -->
+        <button onclick="document.getElementById('photoInput').click()" 
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg text-lg flex items-center justify-center gap-2">
+          <span class="text-2xl">📷</span>
+          <span>Take Photo</span>
+        </button>
+        
+        <!-- Upload Multiple -->
+        <button onclick="document.getElementById('galleryInput').click()" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2">
+          <span class="text-2xl">📁</span>
+          <span>Upload Photos from Gallery</span>
+        </button>
+        
+        <!-- Process -->
+        <button onclick="uploadAll()" id="doneBtn" 
+                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg text-lg flex items-center justify-center gap-2" disabled>
+          <span class="text-2xl">✓</span>
+          <span>Extract Text</span>
+        </button>
+      </div>
+      
+      <!-- Preview Grid -->
+      <div id="preview" class="grid grid-cols-2 gap-3"></div>
+      
+      <!-- Clear Button -->
+      <button onclick="clearAll()" id="clearBtn" class="hidden w-full mt-3 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+        🗑️ Clear All
+      </button>
+    </div>
+  </div>
+  
+  <!-- Results -->
+  <div id="result"></div>
+</div>
+
+<script>
+let scannedImages = [];
+
+document.getElementById('photoInput').addEventListener('change', function(e) {
+  if (e.target.files[0]) addImage(e.target.files[0]);
+  e.target.value = '';
+});
+
+document.getElementById('galleryInput').addEventListener('change', function(e) {
+  Array.from(e.target.files).forEach(file => addImage(file));
+  e.target.value = '';
+});
+
+function addImage(file) {
+  if (!file.type.startsWith('image/')) {
+    alert('Please select image files only');
+    return;
+  }
+  
+  scannedImages.push(file);
+  updateUI();
+  
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    const preview = document.getElementById('preview');
+    const div = document.createElement('div');
+    div.className = 'relative';
+    div.innerHTML = `
+      <img src="${event.target.result}" class="rounded border-2 border-indigo-300 w-full h-48 object-cover">
+      <div class="absolute top-2 left-2 bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+        Page ${scannedImages.length}
+      </div>
+      <button onclick="removeImage(${scannedImages.length - 1})" 
+              class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full font-bold shadow-lg">
+        ✕
+      </button>
+    `;
+    preview.appendChild(div);
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage(index) {
+  scannedImages.splice(index, 1);
+  rebuildPreview();
+  updateUI();
+}
+
+function rebuildPreview() {
+  const preview = document.getElementById('preview');
+  preview.innerHTML = '';
+  scannedImages.forEach((file, idx) => {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const div = document.createElement('div');
+      div.className = 'relative';
+      div.innerHTML = `
+        <img src="${event.target.result}" class="rounded border-2 border-indigo-300 w-full h-48 object-cover">
+        <div class="absolute top-2 left-2 bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+          Page ${idx + 1}
+        </div>
+        <button onclick="removeImage(${idx})" 
+                class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full font-bold shadow-lg">
+          ✕
+        </button>
+      `;
+      preview.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function clearAll() {
+  if (confirm('Clear all pages?')) {
+    scannedImages = [];
+    document.getElementById('preview').innerHTML = '';
+    updateUI();
+  }
+}
+
+function updateUI() {
+  document.getElementById('pageCount').textContent = scannedImages.length;
+  document.getElementById('doneBtn').disabled = scannedImages.length === 0;
+  document.getElementById('clearBtn').classList.toggle('hidden', scannedImages.length === 0);
+}
+
+function uploadAll() {
+  if (scannedImages.length === 0) return;
+  if (!confirm(`Extract text from ${scannedImages.length} page(s)?`)) return;
+  
+  document.getElementById('result').innerHTML = `
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-8 text-center">
+      <div class="animate-spin rounded-full h-20 w-20 border-b-4 border-indigo-600 mx-auto mb-4"></div>
+      <p class="text-2xl font-bold text-blue-800">Extracting text from ${scannedImages.length} pages...</p>
+      <p class="text-gray-600 mt-2">This takes 30-60 seconds</p>
+    </div>
+  `;
+  
+  const formData = new FormData();
+  scannedImages.forEach(file => formData.append('images', file));
+  
+  fetch('{% url "upload_and_extract" %}', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.text())
+  .then(html => {
+    document.getElementById('result').innerHTML = html;
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+  })
+  .catch(error => {
+    document.getElementById('result').innerHTML = `
+      <div class="bg-red-50 border-2 border-red-300 rounded-xl p-6">
+        <h3 class="text-xl font-bold text-red-800 mb-2">Error</h3>
+        <p class="text-red-700">${error.message}</p>
+        <button onclick="location.reload()" class="mt-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Try Again</button>
+      </div>
+    `;
+  });
+}
+</script>
+{% endblock %}
