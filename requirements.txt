@@ -4,4 +4,4 @@ opencv-python
 python-docx
 weasyprint
 requests
-Pillow
+Pillowgunicorn==23.0.0
