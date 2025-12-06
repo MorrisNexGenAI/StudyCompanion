@@ -71,6 +71,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',  # points to scanner/static/
 ]
+# Your Colab OCR endpoint (change when ngrok URL changes!)
+COLAB_OCR_URL = os.environ.get(
+    "COLAB_OCR_URL",
+    "https://talon-bionomic-apogamously.ngrok-free.dev"
+)
 
 # WhiteNoise config
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
