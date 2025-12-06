@@ -1,10 +1,13 @@
+{% load static %}  <!-- Add this at the very top of the file -->
+
 <!DOCTYPE html>
 <html class="h-full">
 <head>
   <meta charset="utf-8">
   <title>Study Summary</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="/static/htmx.min.js"></script>
+  <!-- Use Django static tag -->
+  <script src="{% static 'htmx.min.js' %}"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center">
