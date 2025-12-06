@@ -1,9 +1,10 @@
+# scan/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from .models import Course, Topic
-from .utils.ocr import extract_text_from_image, test_ocr_connection
+from .utils.ocr import extract_text_from_image, extract_text_from_images_batch, test_ocr_connection
 import os
 from django.conf import settings
 
@@ -20,31 +21,39 @@ def scan_new(request):
 
 @csrf_exempt
 def upload_and_extract(request):
-    """Upload images and extract text via OCR"""
+    """Upload images and extract text via OCR (NOW WITH BATCH PROCESSING)"""
     if request.method == 'POST' and request.FILES.getlist('images'):
         try:
             # Process all uploaded images
             image_files = request.FILES.getlist('images')
-            all_text = ""
             
-            # Save images temporarily and extract text
+            # Save images temporarily
             temp_paths = []
+            temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+            os.makedirs(temp_dir, exist_ok=True)
+            
             for idx, img in enumerate(image_files, 1):
-                # Create temp directory
-                temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
-                os.makedirs(temp_dir, exist_ok=True)
-                
-                # Save image temporarily
                 img_path = os.path.join(temp_dir, f'temp_{idx}_{img.name}')
                 with open(img_path, 'wb+') as f:
                     for chunk in img.chunks():
                         f.write(chunk)
-                
                 temp_paths.append(img_path)
+            
+            # ✅ BATCH PROCESSING: Extract text from all images at once
+            if len(temp_paths) > 1:
+                # Use batch processing for multiple images (MUCH FASTER)
+                batch_results = extract_text_from_images_batch(temp_paths)
                 
-                # Extract text
-                text = extract_text_from_image(img_path)
-                all_text += f"--- Page {idx} ---\n{text}\n\n"
+                # Combine all results
+                all_text = ""
+                for result in batch_results:
+                    page_num = result['page']
+                    text = result['text']
+                    all_text += f"--- Page {page_num} ---\n{text}\n\n"
+            else:
+                # Single image - use regular method
+                text = extract_text_from_image(temp_paths[0])
+                all_text = f"--- Page 1 ---\n{text}\n\n"
             
             # ✅ AUTO-DELETE: Remove all temporary images after extraction
             for img_path in temp_paths:
@@ -54,7 +63,7 @@ def upload_and_extract(request):
                 except Exception as e:
                     print(f"Warning: Could not delete {img_path}: {e}")
             
-            # Also clean up temp directory if empty
+            # Clean up temp directory if empty
             try:
                 if os.path.exists(temp_dir) and not os.listdir(temp_dir):
                     os.rmdir(temp_dir)
