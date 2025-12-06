@@ -69,7 +69,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Add your app static folder
 STATICFILES_DIRS = [
-    BASE_DIR / 'scanner' / 'static',  # points to scanner/static/
+    BASE_DIR / 'static',  # points to scanner/static/
 ]
 
 # WhiteNoise config
