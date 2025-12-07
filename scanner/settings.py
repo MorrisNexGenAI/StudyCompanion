@@ -1,16 +1,23 @@
 from pathlib import Path
 import os
+import dj_database_url
+from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent  # project root: where manage.py lives
+# Load environment variables from .env file
+load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent.parent  # project root: where manage.py lives
 
 SECRET_KEY = os.environ.get(
     "DJANGO_SECRET_KEY",
     "django-insecure-change-this-immediately-1234567890!@#$%^"
 )
 
-DEBUG = True  # Set False in real production
+# Read DEBUG from environment, default to False for safety
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["*"]  # Adjust later for your domain
+# Parse ALLOWED_HOSTS from environment variable
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -54,12 +61,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'scanner.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database Configuration
+# Use DATABASE_URL from environment or fall back to SQLite for local development
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if DATABASE_URL:
+    # Use PostgreSQL from environment variable (Render/NeonDB)
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    # Fall back to SQLite for local development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Static files – app-level static
 STATIC_URL = '/static/'
@@ -71,7 +93,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',  # points to scanner/static/
 ]
-# Your Colab OCR endpoint (change when ngrok URL changes!)
+
+# Your Colab OCR endpoint
 COLAB_OCR_URL = os.environ.get(
     "COLAB_OCR_URL",
     "https://talon-bionomic-apogamously.ngrok-free.dev"
@@ -84,14 +107,23 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Security headers (optional)
+# Security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-# CSRF trusted origins (adjust if using HTTPS)
+# Production security settings (only apply when DEBUG=False)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# CSRF trusted origins
 CSRF_TRUSTED_ORIGINS = [
-    # Add your domain(s) here in production
+    origin.strip() for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()
 ]
 
 # Default primary key
