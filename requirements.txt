@@ -7,7 +7,7 @@ gunicorn==23.0.0
 requests==2.32.5
 pytesseract==0.3.10
 whitenoise
-psycopg2-binary==2.9.9
+psycopg[binary]>=3.1.18
 dj-database-url==2.1.0
 python-dotenv==1.0.0
 # Any other packages from your Poetry export...
