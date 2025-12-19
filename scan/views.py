@@ -1,9 +1,8 @@
-# scan/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
-from .models import Course, Topic
+from .models import Course, Topic, Department
 from .utils.ocr import extract_text_from_image, extract_text_from_images_batch, test_ocr_connection
 import os
 from django.conf import settings
@@ -21,7 +20,7 @@ def scan_new(request):
 
 @csrf_exempt
 def upload_and_extract(request):
-    """Upload images and extract text via OCR (NOW WITH BATCH PROCESSING)"""
+    """Upload images and extract text via OCR (WITH BATCH PROCESSING)"""
     if request.method == 'POST' and request.FILES.getlist('images'):
         try:
             # Process all uploaded images
@@ -39,23 +38,19 @@ def upload_and_extract(request):
                         f.write(chunk)
                 temp_paths.append(img_path)
             
-            # ✅ BATCH PROCESSING: Extract text from all images at once
+            # Batch processing for multiple images
             if len(temp_paths) > 1:
-                # Use batch processing for multiple images (MUCH FASTER)
                 batch_results = extract_text_from_images_batch(temp_paths)
-                
-                # Combine all results
                 all_text = ""
                 for result in batch_results:
                     page_num = result['page']
                     text = result['text']
                     all_text += f"--- Page {page_num} ---\n{text}\n\n"
             else:
-                # Single image - use regular method
                 text = extract_text_from_image(temp_paths[0])
                 all_text = f"--- Page 1 ---\n{text}\n\n"
             
-            # ✅ AUTO-DELETE: Remove all temporary images after extraction
+            # Auto-delete temporary images
             for img_path in temp_paths:
                 try:
                     if os.path.exists(img_path):
@@ -70,7 +65,7 @@ def upload_and_extract(request):
             except:
                 pass
             
-            # Store extracted text in session for the save form
+            # Store extracted text in session
             request.session['extracted_text'] = all_text
             request.session['temp_image_count'] = len(image_files)
             
@@ -96,7 +91,7 @@ def save_topic(request):
     if request.method == 'POST':
         try:
             # Get form data
-            course_option = request.POST.get('course_option')  # 'existing' or 'new'
+            course_option = request.POST.get('course_option')
             topic_title = request.POST.get('topic_title')
             page_range = request.POST.get('page_range', '')
             
@@ -108,15 +103,16 @@ def save_topic(request):
             
             # Handle course selection
             if course_option == 'new':
-                # Create new course
                 course_name = request.POST.get('new_course_name')
                 course_subject = request.POST.get('new_course_subject', '')
-                course = Course.objects.create(
-                    name=course_name,
-                    subject=course_subject
-                )
+                course = Course.objects.create(name=course_name)
+                
+                # Handle department (legacy support)
+                if course_subject:
+                    dept = Department.get_or_create_department(course_subject)
+                    if dept:
+                        course.departments.add(dept)
             else:
-                # Use existing course
                 course_id = request.POST.get('existing_course')
                 course = get_object_or_404(Course, id=course_id)
             
@@ -133,7 +129,6 @@ def save_topic(request):
             request.session.pop('extracted_text', None)
             request.session.pop('temp_image_count', None)
             
-            # Return success page
             return render(request, 'scan/partials/save_success.html', {
                 'topic': topic,
                 'course': course
@@ -150,7 +145,7 @@ def save_topic(request):
 # ============= LIBRARY =============
 def library(request):
     """Show all courses"""
-    courses = Course.objects.all()
+    courses = Course.objects.prefetch_related('departments').all()
     return render(request, 'scan/partials/library.html', {
         'courses': courses
     })
@@ -158,7 +153,7 @@ def library(request):
 
 def course_detail(request, course_id):
     """Show all topics in a course"""
-    course = get_object_or_404(Course, id=course_id)
+    course = get_object_or_404(Course.objects.prefetch_related('departments'), id=course_id)
     topics = course.topics.all()
     return render(request, 'scan/partials/course_detail.html', {
         'course': course,
@@ -168,7 +163,7 @@ def course_detail(request, course_id):
 
 def course_full_summary(request, course_id):
     """Show combined refined text for entire course"""
-    course = get_object_or_404(Course, id=course_id)
+    course = get_object_or_404(Course.objects.prefetch_related('departments'), id=course_id)
     full_text = course.get_full_refined_text()
     return render(request, 'scan/partials/full_summary.html', {
         'course': course,
@@ -193,7 +188,6 @@ def edit_refined_summary(request, topic_id):
         refined_text = request.POST.get('refined_summary', '')
         topic.refined_summary = refined_text
         topic.save()
-        
         return redirect('topic_detail', topic_id=topic.id)
     
     return render(request, 'scan/partials/edit_refined.html', {
@@ -203,17 +197,27 @@ def edit_refined_summary(request, topic_id):
 
 # ============= COURSE MANAGEMENT =============
 def create_course(request):
-    """Create new course"""
+    """Create new course with multiple departments"""
     if request.method == 'POST':
+        # Create course
         course = Course.objects.create(
             name=request.POST.get('name'),
-            subject=request.POST.get('subject', ''),
             year=request.POST.get('year', ''),
             description=request.POST.get('description', '')
         )
+        
+        # Handle multiple departments
+        department_ids = request.POST.getlist('departments')
+        if department_ids:
+            course.departments.set(department_ids)
+        
         return redirect('course_detail', course_id=course.id)
     
-    return render(request, 'scan/partials/create_course.html')
+    # GET request - show form
+    all_departments = Department.objects.all()
+    return render(request, 'scan/partials/create_course.html', {
+        'all_departments': all_departments
+    })
 
 
 def delete_course(request, course_id):
@@ -235,7 +239,73 @@ def delete_topic(request, topic_id):
     return redirect('library')
 
 
-# ============= API =============
+# ============= PUBLIC API (For Mobile App) =============
+
+def api_departments(request):
+    """GET /api/departments/ - List all departments"""
+    departments = Department.objects.all()
+    data = [{'id': d.id, 'name': d.name} for d in departments]
+    return JsonResponse(data, safe=False)
+
+
+def api_department_courses(request, dept_id):
+    """GET /api/departments/<int:dept_id>/courses/ - List courses in department"""
+    department = get_object_or_404(Department, id=dept_id)
+    courses = department.courses.prefetch_related('departments').all()
+    
+    data = []
+    for course in courses:
+        data.append({
+            'id': course.id,
+            'name': course.name,
+            'year': course.year,
+            'departments': [{'id': d.id, 'name': d.name} for d in course.departments.all()],
+            'topic_count': course.get_total_topics(),
+            'refined_count': course.get_refined_count(),
+        })
+    
+    return JsonResponse(data, safe=False)
+
+
+def api_course_topics(request, course_id):
+    """GET /api/courses/<int:course_id>/topics/ - List topics metadata (no full text)"""
+    course = get_object_or_404(Course, id=course_id)
+    topics = course.topics.all()
+    
+    data = []
+    for topic in topics:
+        data.append({
+            'id': topic.id,
+            'title': topic.title,
+            'page_range': topic.page_range,
+            'updated_at': int(topic.updated_at.timestamp()),
+            'is_refined': topic.is_refined(),
+        })
+    
+    return JsonResponse(data, safe=False)
+
+
+def api_topic_detail(request, topic_id):
+    """GET /api/topics/<int:topic_id>/ - Get full topic with refined summary"""
+    topic = get_object_or_404(Topic.objects.select_related('course').prefetch_related('course__departments'), id=topic_id)
+    
+    data = {
+        'id': topic.id,
+        'title': topic.title,
+        'page_range': topic.page_range,
+        'refined_summary': topic.refined_summary,
+        'raw_text': topic.raw_text,
+        'course_name': topic.course.name,
+        'course_year': topic.course.year,
+        'departments': [d.name for d in topic.course.departments.all()],
+        'updated_at': int(topic.updated_at.timestamp()),
+        'created_at': int(topic.created_at.timestamp()),
+    }
+    
+    return JsonResponse(data)
+
+
+# ============= UTILITIES =============
 def ocr_status(request):
     """Check if OCR engine is running"""
     is_healthy, message = test_ocr_connection()

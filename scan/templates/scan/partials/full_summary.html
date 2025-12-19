@@ -5,21 +5,33 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-3xl font-bold text-indigo-600">{{ course.name }} - Full Summary</h1>
-            {% if course.subject %}
-            <p class="text-gray-600">{{ course.subject }}</p>
+            
+            <!-- Display Departments -->
+            {% if course.departments.all %}
+            <div class="flex flex-wrap gap-2 mt-2">
+                {% for dept in course.departments.all %}
+                <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
+                    {{ dept.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if course.year %}
+            <p class="text-gray-600 mt-1">📅 {{ course.year }}</p>
             {% endif %}
         </div>
         <a href="{% url 'course_detail' course.id %}" class="text-gray-600 hover:text-gray-800">← Back</a>
     </div>
     
     <div class="grid md:grid-cols-3 gap-3 mb-6">
-        <button onclick="copyFullSummary()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
+        <button onclick="copyFullSummary()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition">
             📋 Copy All
         </button>
-        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
+        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
             🖨️ Print
         </button>
-        <button onclick="downloadText()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg">
+        <button onclick="downloadText()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition">
             💾 Download
         </button>
     </div>
@@ -38,7 +50,7 @@
     <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6 text-center mt-6">
         <p class="text-yellow-800 mb-3">No refined summaries yet</p>
         <a href="{% url 'course_detail' course.id %}" 
-           class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg">
+           class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg transition">
             Go Back
         </a>
     </div>
