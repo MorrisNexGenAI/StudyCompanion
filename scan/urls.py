@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # ============= WEB INTERFACE =============
     path('', views.home, name='home'),
     path('scan/', views.scan_new, name='scan_new'),
     path('upload/', views.upload_and_extract, name='upload_and_extract'),
@@ -11,14 +12,20 @@ urlpatterns = [
     # Course URLs
     path('course/<int:course_id>/', views.course_detail, name='course_detail'),
     path('course/<int:course_id>/full/', views.course_full_summary, name='course_full_summary'),
-    path('create-course/', views.create_course, name='create_course'),  # ← THIS WAS MISSING!
-    path('course/<int:course_id>/delete/', views.delete_course, name='delete_course'),  # optional but good to have
+    path('create-course/', views.create_course, name='create_course'),
+    path('course/<int:course_id>/delete/', views.delete_course, name='delete_course'),
 
     # Topic URLs
     path('topic/<int:topic_id>/', views.topic_detail, name='topic_detail'),
     path('topic/<int:topic_id>/edit/', views.edit_refined_summary, name='edit_refined_summary'),
-    path('topic/<int:topic_id>/delete/', views.delete_topic, name='delete_topic'),  # optional
+    path('topic/<int:topic_id>/delete/', views.delete_topic, name='delete_topic'),
 
-    # API
+    # Utilities
     path('ocr-status/', views.ocr_status, name='ocr_status'),
+    
+    # ============= PUBLIC API (Mobile App) =============
+    path('api/departments/', views.api_departments, name='api_departments'),
+    path('api/departments/<int:dept_id>/courses/', views.api_department_courses, name='api_department_courses'),
+    path('api/courses/<int:course_id>/topics/', views.api_course_topics, name='api_course_topics'),
+    path('api/topics/<int:topic_id>/', views.api_topic_detail, name='api_topic_detail'),
 ]

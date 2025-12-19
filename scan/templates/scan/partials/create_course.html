@@ -14,39 +14,64 @@
             <label class="block text-sm font-bold mb-2">Course Name *</label>
             <input type="text" name="name" required 
                    placeholder="e.g., BIO 202, CHEM 101"
-                   class="w-full p-3 border-2 border-gray-300 rounded-lg">
+                   class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none">
         </div>
         
         <div>
-            <label class="block text-sm font-bold mb-2">Subject</label>
-            <input type="text" name="subject" 
-                   placeholder="e.g., Cell Biology"
-                   class="w-full p-3 border-2 border-gray-300 rounded-lg">
+            <label class="block text-sm font-bold mb-2">Departments (Select Multiple)</label>
+            <select name="departments" id="departmentSelect" multiple 
+                    class="w-full p-3 border-2 border-gray-300 rounded-lg">
+                {% for dept in all_departments %}
+                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                {% endfor %}
+            </select>
+            <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple, or use search</p>
         </div>
         
         <div>
             <label class="block text-sm font-bold mb-2">Year</label>
             <input type="text" name="year" 
-                   placeholder="e.g., 2024"
-                   class="w-full p-3 border-2 border-gray-300 rounded-lg">
+                   placeholder="e.g., 2024, Fall 2024"
+                   class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none">
         </div>
         
         <div>
             <label class="block text-sm font-bold mb-2">Description (Optional)</label>
             <textarea name="description" rows="3"
                       placeholder="Notes about this course..."
-                      class="w-full p-3 border-2 border-gray-300 rounded-lg"></textarea>
+                      class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"></textarea>
         </div>
         
         <div class="flex gap-3">
-            <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg text-lg">
+            <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg text-lg transition">
                 ✓ Create Course
             </button>
             <a href="{% url 'library' %}" 
-               class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-4 px-6 rounded-lg">
+               class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-4 px-6 rounded-lg transition text-center">
                 Cancel
             </a>
         </div>
     </form>
 </div>
+
+<!-- Choices.js CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+
+<!-- Choices.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const element = document.getElementById('departmentSelect');
+    const choices = new Choices(element, {
+        removeItemButton: true,
+        searchEnabled: true,
+        searchPlaceholderValue: 'Search departments...',
+        placeholder: true,
+        placeholderValue: 'Select departments',
+        noChoicesText: 'No departments available',
+        itemSelectText: 'Click to select',
+    });
+});
+</script>
 {% endblock %}
