@@ -17,17 +17,14 @@ SECRET_KEY = os.environ.get(
 )
 
 DEBUG = os.environ.get("DEBUG", "False") == "True"
-#ALLOWED_HOSTS = [
-   # host.strip()
-   # for host in os.environ.get(
-     #   "ALLOWED_HOSTS",
-     #   "localhost, 10.248.248.46",
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS"
+    ).split(",")
+    if host.strip()
+]
 
-    #).split(",")
-    #if host.strip()
-#]
-
-ALLOWED_HOSTS = ["*"]
 
 # =========================
 # Installed Apps
@@ -77,8 +74,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
-        "CORS_ALLOWED_ORIGINS",
-        "http://localhost:3000, http://10.248.248.46",
+        "CORS_ALLOWED_ORIGINS"
     ).split(",")
     if origin.strip()
 ]
@@ -175,7 +171,7 @@ if not DEBUG:
 # CORS Configuration (for PWA to access API)
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "10.248.248.46:8000,http://localhost:3000").split(",")
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS").split(",")
     if origin.strip()
 ]
 
@@ -185,7 +181,7 @@ CORS_ALLOW_CREDENTIALS = True
 # CSRF trusted origins (must match CORS origins)
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "10.248.248.46:8000,http://localhost:3000").split(",")
+    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS").split(",")
     if origin.strip()
 ]
 
