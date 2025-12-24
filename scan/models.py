@@ -50,7 +50,7 @@ class Course(BaseModel):
         topics = self.topics.filter(
             refined_summary__isnull=False
         ).exclude(refined_summary='').order_by('order', 'created_at')
-        so
+     
         # Header
         full_text = f"{self.name}\n"
         dept_display = self.get_departments_display()
