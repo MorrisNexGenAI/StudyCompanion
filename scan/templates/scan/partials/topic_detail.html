@@ -38,6 +38,10 @@
                class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm">
                 {% if topic.is_refined %}✏️ Edit{% else %}➕ Add{% endif %}
             </a>
+            <a href="{% url 'ai_refine_page' topic.id %}" 
+   class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-lg">
+    🤖 AI Refine
+</a>
         </div>
         
         {% if topic.refined_summary %}
