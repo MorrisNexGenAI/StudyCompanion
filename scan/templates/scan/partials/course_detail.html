@@ -59,9 +59,24 @@
                 <div class="flex-1">
                     <div class="flex items-center gap-2 mb-2">
                         <h3 class="text-lg font-bold text-gray-800">{{ topic.title }}</h3>
+                        
+                        <!-- Refined/Raw Status Badge -->
                         <span class="text-sm {% if topic.is_refined %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %} px-2 py-1 rounded-full">
                             {{ topic.get_status }}
                         </span>
+                        
+                        <!-- Premium Status Badge -->
+                        {% if topic.is_premium %}
+                            {% if topic.premium_users.count == 0 %}
+                            <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold">
+                                🔒 Premium (Not Sent)
+                            </span>
+                            {% else %}
+                            <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-semibold">
+                                🔒 Sent ({{ topic.premium_users.count }})
+                            </span>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     {% if topic.page_range %}
                     <p class="text-sm text-gray-600 mb-2">📄 {{ topic.page_range }}</p>
@@ -84,6 +99,7 @@
         </a>
     </div>
     {% endif %}
+    
     
     <div class="mt-6 pt-6 border-t">
         <form method="POST" action="{% url 'delete_course' course.id %}" onsubmit="return confirm('Delete entire course and all topics?');">

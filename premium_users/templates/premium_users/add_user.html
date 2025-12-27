@@ -1,0 +1,94 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8 max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-green-600">➕ Add Premium User</h1>
+        <a href="{% url 'premium_users:manage_users' %}" class="text-gray-600 hover:text-gray-800">
+            ← Back to List
+        </a>
+    </div>
+
+    <!-- Error Message -->
+    {% if error %}
+    <div class="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-6">
+        <p class="text-red-800 font-semibold">❌ {{ error }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Add User Form -->
+    <form method="POST" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Name Field -->
+        <div>
+            <label class="block text-gray-700 font-bold mb-2">Full Name</label>
+            <input type="text"
+                   name="name"
+                   required
+                   maxlength="100"
+                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none"
+                   placeholder="e.g., Emmanuel Cooper">
+            <p class="text-sm text-gray-500 mt-1">Maximum 100 characters</p>
+        </div>
+
+        <!-- Code Field -->
+        <div>
+            <label class="block text-gray-700 font-bold mb-2">Personal Code</label>
+            <input type="text"
+                   name="code"
+                   required
+                   maxlength="4"
+                   pattern="[A-Za-z0-9]{4}"
+                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none font-mono text-lg uppercase"
+                   placeholder="e.g., EC21"
+                   style="text-transform: uppercase;">
+            <p class="text-sm text-gray-500 mt-1">
+                Exactly 4 alphanumeric characters (A–Z, 0–9)
+            </p>
+        </div>
+
+        <!-- Status Info -->
+        <div class="bg-green-50 border-2 border-green-300 rounded-lg p-4">
+            <p class="text-green-800 font-bold mb-1">Initial Status</p>
+            <p class="text-green-900 text-sm">
+                New users are created as <strong>Active</strong> by default.
+            </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+            <button type="submit"
+                    class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                ➕ Create User
+            </button>
+
+            <a href="{% url 'premium_users:manage_users' %}"
+               class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-center transition">
+                Cancel
+            </a>
+        </div>
+    </form>
+
+    <!-- Info Banner -->
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 mt-6">
+        <p class="text-blue-800 font-bold mb-2">ℹ️ Notes:</p>
+        <ul class="list-disc list-inside text-sm text-blue-900 space-y-1">
+            <li>Code must be unique</li>
+            <li>Code is automatically converted to uppercase</li>
+            <li>User can log in immediately after creation</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    // Auto-uppercase code input
+    const codeInput = document.querySelector('input[name="code"]');
+    if (codeInput) {
+        codeInput.addEventListener('input', function () {
+            this.value = this.value.toUpperCase();
+        });
+    }
+</script>
+{% endblock %}

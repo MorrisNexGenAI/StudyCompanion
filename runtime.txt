@@ -1,1 +1,844 @@
-python-3.12.4
+my scan views;
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
+from django.db.models import Q
+from .models import Course, Topic, Department
+from .utils.ocr import extract_text_from_image, extract_text_from_images_batch, test_ocr_connection
+import os
+from django.conf import settings
+from premium_users.views import (
+    filter_topics_for_user, 
+    check_topic_access,
+    get_active_premium_users_for_select
+)
+
+# ============= HOME =============
+def home(request):
+    """Main landing page with two options"""
+    return render(request, 'scan/partials/home.html')
+
+
+# ============= SCANNING =============
+def scan_new(request):
+    """Scan new pages interface"""
+    return render(request, 'scan/partials/scan.html')
+
+@csrf_exempt
+def upload_and_extract(request):
+    """Upload images and extract text via OCR (WITH BATCH PROCESSING)"""
+    if request.method == 'POST' and request.FILES.getlist('images'):
+        try:
+            image_files = request.FILES.getlist('images')
+            temp_paths = []
+            temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            for idx, img in enumerate(image_files, 1):
+                img_path = os.path.join(temp_dir, f'temp_{idx}_{img.name}')
+                with open(img_path, 'wb+') as f:
+                    for chunk in img.chunks():
+                        f.write(chunk)
+                temp_paths.append(img_path)
+            
+            if len(temp_paths) > 1:
+                batch_results = extract_text_from_images_batch(temp_paths)
+                all_text = ""
+                for result in batch_results:
+                    page_num = result['page']
+                    text = result['text']
+                    all_text += f"--- Page {page_num} ---\n{text}\n\n"
+            else:
+                text = extract_text_from_image(temp_paths[0])
+                all_text = f"--- Page 1 ---\n{text}\n\n"
+            
+            for img_path in temp_paths:
+                try:
+                    if os.path.exists(img_path):
+                        os.remove(img_path)
+                except Exception as e:
+                    print(f"Warning: Could not delete {img_path}: {e}")
+            
+            try:
+                if os.path.exists(temp_dir) and not os.listdir(temp_dir):
+                    os.rmdir(temp_dir)
+            except:
+                pass
+            
+            request.session['extracted_text'] = all_text
+            request.session['temp_image_count'] = len(image_files)
+            
+            courses = Course.objects.all()
+            
+            return render(request, 'scan/partials/save_form.html', {
+                'extracted_text': all_text,
+                'courses': courses,
+                'page_count': len(image_files)
+            })
+            
+        except Exception as e:
+            return render(request, 'scan/partials/error.html', {
+                'error': str(e)
+            })
+    
+    return JsonResponse({'error': 'No images uploaded'}, status=400)
+
+
+@csrf_exempt
+def save_topic(request):
+    """
+    Save extracted text as a new topic.
+    Backend determines if premium based on topic_type radio button value.
+    """
+    if request.method == 'POST':
+        raw_text = request.session.get('extracted_text')
+        if not raw_text:
+            messages.error(request, "No extracted text found. Please scan again.")
+            return redirect('scan_new')
+
+        course_option = request.POST.get('course_option')
+        topic_title = request.POST.get('topic_title')
+        page_range = request.POST.get('page_range', '')
+        topic_type = request.POST.get('topic_type', 'community')
+        is_premium = (topic_type == 'premium')
+
+        print(f"[SAVE TOPIC] topic_type received: '{topic_type}'")
+        print(f"[SAVE TOPIC] is_premium set to: {is_premium}")
+
+        if course_option == 'new':
+            course_name = request.POST.get('new_course_name')
+            if not course_name:
+                messages.error(request, "Course name is required.")
+                return redirect('scan_new')
+            course_subject = request.POST.get('new_course_subject', '')
+            course = Course.objects.create(name=course_name)
+            if course_subject:
+                dept = Department.get_or_create_department(course_subject)
+                if dept:
+                    course.departments.add(dept)
+        else:
+            course_id = request.POST.get('existing_course')
+            if not course_id:
+                messages.error(request, "Please select a course.")
+                return redirect('scan_new')
+            course = get_object_or_404(Course, id=course_id)
+
+        topic = Topic.objects.create(
+            course=course,
+            title=topic_title,
+            raw_text=raw_text,
+            page_range=page_range,
+            order=course.topics.count(),
+            is_premium=is_premium
+        )
+        
+        print(f"[SAVE TOPIC] Topic #{topic.id} created successfully")
+        print(f"[SAVE TOPIC] Topic.is_premium = {topic.is_premium}")
+        print(f"[SAVE TOPIC] Topic title: {topic.title}")
+
+        request.session.pop('extracted_text', None)
+        request.session.pop('temp_image_count', None)
+
+        if is_premium:
+            messages.success(request, f"Premium topic '{topic_title}' saved! Assign users in 'Send Premium Topics' page.")
+        else:
+            messages.success(request, f"Community topic '{topic_title}' saved!")
+        
+        return render(request, 'scan/partials/save_success.html', {
+            'topic': topic,
+            'course': course,
+            'is_premium': is_premium
+        })
+
+    return redirect('scan_new')
+
+
+# ============= LIBRARY =============
+def library(request):
+    courses = Course.objects.prefetch_related('departments').all()
+    
+    for course in courses:
+        community_count = course.topics.filter(is_premium=False).count()
+        unassigned_premium_count = course.topics.filter(
+            is_premium=True, 
+            premium_users__isnull=True
+        ).count()
+        course.visible_topic_count = community_count + unassigned_premium_count
+    
+    return render(request, 'scan/partials/library.html', {'courses': courses})
+
+
+def course_detail(request, course_id):
+    course = get_object_or_404(Course.objects.prefetch_related('departments'), id=course_id)
+    topics = course.topics.filter(
+        Q(is_premium=False) | Q(is_premium=True, premium_users__isnull=True)
+    ).distinct()
+    return render(request, 'scan/partials/course_detail.html', {
+        'course': course,
+        'topics': topics
+    })
+
+
+def course_full_summary(request, course_id):
+    course = get_object_or_404(Course.objects.prefetch_related('departments'), id=course_id)
+    full_text = ""
+    community_topics = course.topics.filter(is_premium=False).order_by('order')
+    for topic in community_topics:
+        if topic.refined_summary:
+            full_text += f"\n\n{'='*50}\nTOPIC: {topic.title}\n{'='*50}\n\n"
+            full_text += topic.refined_summary
+    return render(request, 'scan/partials/full_summary.html', {'course': course, 'full_text': full_text})
+
+
+def topic_detail(request, topic_id):
+    topic = get_object_or_404(Topic, id=topic_id)
+    if topic.is_premium and topic.premium_users.exists() and not request.user.is_staff:
+        return render(request, 'scan/partials/premium_access_denied.html', {
+            'topic': topic,
+            'assigned_count': topic.premium_users.count()
+        })
+    return render(request, 'scan/partials/topic_detail.html', {'topic': topic})
+
+def edit_refined_summary(request, topic_id):
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    # ONLY non-staff users are restricted
+    if not request.user.is_staff:
+        if topic.is_premium and topic.premium_users.exists():
+            messages.error(request, "You cannot edit assigned premium topics.")
+            return redirect('topic_detail', topic_id=topic.id)
+    
+    if request.method == 'POST':
+        refined_text = request.POST.get('refined_summary', '').strip()
+        topic.refined_summary = refined_text
+        topic.save()
+        messages.success(request, "Refined summary updated successfully.")
+        return redirect('topic_detail', topic_id=topic.id)
+    
+    return render(request, 'scan/partials/edit_refined.html', {'topic': topic})
+
+# ============= COURSE MANAGEMENT =============
+def create_course(request):
+    if request.method == 'POST':
+        course = Course.objects.create(
+            name=request.POST.get('name'),
+            year=request.POST.get('year', ''),
+            description=request.POST.get('description', '')
+        )
+        department_ids = request.POST.getlist('departments')
+        if department_ids:
+            course.departments.set(department_ids)
+        return redirect('course_detail', course_id=course.id)
+    
+    all_departments = Department.objects.all()
+    return render(request, 'scan/partials/create_course.html', {'all_departments': all_departments})
+
+
+def delete_course(request, course_id):
+    if request.method == 'POST':
+        course = get_object_or_404(Course, id=course_id)
+        course.delete()
+        return redirect('library')
+    return redirect('library')
+
+
+def delete_topic(request, topic_id):
+    if request.method == 'POST':
+        topic = get_object_or_404(Topic, id=topic_id)
+        course_id = topic.course.id
+        topic.delete()
+        return redirect('course_detail', course_id=course_id)
+    return redirect('library')
+
+
+# ============= PUBLIC API (For Mobile App) =============
+def api_departments(request):
+    departments = Department.objects.all()
+    return JsonResponse([{'id': d.id, 'name': d.name} for d in departments], safe=False)
+
+
+def api_course_topics(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    user_id = request.GET.get('user_id') or request.headers.get('X-User-ID')
+    topics = filter_topics_for_user(course.topics.all(), user_id)
+    data = [{
+        'id': t.id,
+        'title': t.title,
+        'page_range': t.page_range,
+        'updated_at': int(t.updated_at.timestamp()),
+        'is_refined': t.is_refined(),
+        'is_premium': t.is_premium,
+    } for t in topics]
+    return JsonResponse(data, safe=False)
+
+
+def manage_topic_assignments(request, topic_id):
+    topic = get_object_or_404(Topic, id=topic_id)
+    if not topic.is_premium:
+        messages.error(request, "This is a community topic - no user assignments needed.")
+        return redirect('topic_detail', topic_id=topic.id)
+
+    from premium_users.models import PremiumUser
+    active_users = PremiumUser.objects.filter(is_active=True).order_by('name')
+    current_user_ids = list(topic.premium_users.values_list('id', flat=True))
+
+    if request.method == 'POST':
+        selected_user_ids = request.POST.getlist('premium_users')
+        topic.premium_users.clear()
+        if selected_user_ids:
+            topic.premium_users.set(selected_user_ids)
+            count = len(selected_user_ids)
+            messages.success(request, f"Topic assigned to {count} user{'s' if count != 1 else ''}!")
+        else:
+            messages.warning(request, "No users selected. Topic is not visible to anyone.")
+        return redirect('topic_detail', topic_id=topic.id)
+
+    return render(request, 'scan/partials/manage_topic_assignments.html', {
+        'topic': topic,
+        'course': topic.course,
+        'active_users': active_users,
+        'current_user_ids': current_user_ids
+    })
+
+
+def api_topic_detail(request, topic_id):
+    topic = get_object_or_404(
+        Topic.objects.select_related('course').prefetch_related('course__departments'), 
+        id=topic_id
+    )
+    user_id = request.GET.get('user_id') or request.headers.get('X-User-ID')
+    if not check_topic_access(topic, user_id):
+        return JsonResponse({
+            'error': 'Access denied. This is a premium topic.',
+            'is_premium': True,
+            'requires_login': True
+        }, status=403)
+
+    data = {
+        'id': topic.id,
+        'title': topic.title,
+        'page_range': topic.page_range,
+        'refined_summary': topic.refined_summary,
+        'raw_text': topic.raw_text,
+        'course_name': topic.course.name,
+        'course_year': topic.course.year,
+        'departments': [d.name for d in topic.course.departments.all()],
+        'updated_at': int(topic.updated_at.timestamp()),
+        'created_at': int(topic.created_at.timestamp()),
+        'is_premium': topic.is_premium,
+    }
+    return JsonResponse(data)
+
+
+def api_department_courses(request, dept_id):
+    department = get_object_or_404(Department, id=dept_id)
+    courses = department.courses.prefetch_related('departments').all()
+    user_id = request.GET.get('user_id') or request.headers.get('X-User-ID')
+    data = []
+    for course in courses:
+        accessible_topics = filter_topics_for_user(course.topics.all(), user_id)
+        data.append({
+            'id': course.id,
+            'name': course.name,
+            'year': course.year,
+            'departments': [{'id': d.id, 'name': d.name} for d in course.departments.all()],
+            'topic_count': accessible_topics.count(),
+            'refined_count': accessible_topics.filter(refined_summary__isnull=False).exclude(refined_summary='').count(),
+        })
+    return JsonResponse(data, safe=False)
+
+# ============= MANAGE PREMIUM TOPICS =============
+def manage_premium_topics(request):
+    """
+    Admin page to manage all premium topics.
+    Shows assigned users, allows editing assignments, or refining.
+    """
+    from premium_users.models import PremiumUser
+
+    # Get all premium topics
+    premium_topics = Topic.objects.filter(is_premium=True).prefetch_related('course', 'premium_users').order_by('-updated_at')
+
+    # Get all active premium users (for assignment)
+    active_users = PremiumUser.objects.filter(is_active=True).order_by('name')
+
+    # Build data structure
+    topics_with_users = []
+    for topic in premium_topics:
+        assigned_users = topic.premium_users.all()
+        topics_with_users.append({
+            'topic': topic,
+            'assigned_users': assigned_users,
+            'assigned_user_ids': list(assigned_users.values_list('id', flat=True)),
+            'assigned_count': assigned_users.count()
+        })
+
+    return render(request, 'scan/partials/manage_premium_topics.html', {
+        'topics_with_users': topics_with_users,
+        'active_users': active_users,
+        'total_topics': premium_topics.count(),
+        'total_users': active_users.count()
+    })
+
+
+# ============= UTILITIES =============
+def ocr_status(request):
+    is_healthy, message = test_ocr_connection()
+    return JsonResponse({'healthy': is_healthy, 'message': message})
+
+ my premium views;
+ from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
+from .models import PremiumUser
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from scan.models import Topic
+
+
+# ============= TEMPLATE VIEWS (Custom Admin UI) =============
+
+def manage_premium_users(request):
+    """
+    Main page to view/edit/delete premium users.
+    """
+    search = request.GET.get('search', '')
+    status_filter = request.GET.get('status', 'all')
+
+    users = PremiumUser.objects.all()
+
+    if search:
+        users = users.filter(
+            Q(name__icontains=search) |
+            Q(code__icontains=search)
+        )
+
+    if status_filter == 'active':
+        users = users.filter(is_active=True)
+    elif status_filter == 'inactive':
+        users = users.filter(is_active=False)
+
+    users = users.order_by('-created_at')
+
+    context = {
+        'users': users,
+        'search': search,
+        'status_filter': status_filter,
+        'total_count': PremiumUser.objects.count(),
+        'active_count': PremiumUser.objects.filter(is_active=True).count(),
+        'inactive_count': PremiumUser.objects.filter(is_active=False).count(),
+    }
+
+    return render(request, 'premium_users/manage_users.html', context)
+
+
+def add_premium_user(request):
+    """
+    Create a new premium user (custom page).
+    """
+    error = None
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip().upper()
+
+        # Validation
+        if not name or not code:
+            error = "Name and code are required."
+        elif len(code) != 4:
+            error = "Code must be exactly 4 characters."
+        elif not code.isalnum():
+            error = "Code must contain only letters and numbers."
+        elif PremiumUser.objects.filter(code=code).exists():
+            error = "This code already exists."
+
+        if not error:
+            PremiumUser.objects.create(
+                name=name,
+                code=code,
+                is_active=True
+            )
+            return redirect('premium_users:manage_users')
+
+    return render(request, 'premium_users/add_user.html', {
+        'error': error
+    })
+
+
+def edit_premium_user(request, user_id):
+    user = get_object_or_404(PremiumUser, id=user_id)
+    error = None
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip().upper()
+
+        if not name or not code:
+            error = "Name and code are required."
+        elif len(code) != 4:
+            error = "Code must be exactly 4 characters."
+        elif not code.isalnum():
+            error = "Code must contain only letters and numbers."
+        elif PremiumUser.objects.exclude(id=user.id).filter(code=code).exists():
+            error = "This code already exists."
+
+        if not error:
+            user.name = name
+            user.code = code
+            user.save()
+            return redirect('premium_users:manage_users')
+
+    return render(request, 'premium_users/edit_user.html', {
+        'user': user,
+        'error': error
+    })
+
+
+@csrf_exempt
+def toggle_user_status(request, user_id):
+    if request.method == 'POST':
+        user = get_object_or_404(PremiumUser, id=user_id)
+        user.is_active = not user.is_active
+        user.save()
+    return redirect('premium_users:manage_users')
+
+
+@csrf_exempt
+def delete_premium_user(request, user_id):
+    if request.method == 'POST':
+        user = get_object_or_404(PremiumUser, id=user_id)
+        user.delete()
+    return redirect('premium_users:manage_users')
+
+
+def send_premium_topics(request):
+    """
+    Main page to send premium topics to specific users.
+    Lists ALL premium topics + all active users with checkboxes.
+    """
+    # Get all premium topics
+    premium_topics = Topic.objects.filter(is_premium=True).select_related('course').order_by('-created_at')
+    
+    # Get all active premium users
+    active_users = PremiumUser.objects.filter(is_active=True).order_by('name')
+    
+    if request.method == 'POST':
+        # Get selected topic and users
+        topic_id = request.POST.get('topic_id')
+        selected_user_ids = request.POST.getlist('premium_users')
+        
+        if topic_id:
+            topic = get_object_or_404(Topic, id=topic_id, is_premium=True)
+            
+            # Clear existing assignments
+            topic.premium_users.clear()
+            
+            # Assign to selected users ONLY
+            if selected_user_ids:
+                topic.premium_users.set(selected_user_ids)
+            
+            return redirect('premium_users:send_topics')
+    
+    # Prepare data for template
+    topics_with_users = []
+    for topic in premium_topics:
+        # FIXED: Get assigned users properly
+        assigned_users = topic.premium_users.filter(is_active=True)
+        assigned_user_ids = list(assigned_users.values_list('id', flat=True))
+        
+        topics_with_users.append({
+            'topic': topic,
+            'assigned_users': assigned_users,
+            'assigned_user_ids': assigned_user_ids,
+            'assigned_count': assigned_users.count()  # FIXED: Use .count() instead of len()
+        })
+    
+    return render(request, 'premium_users/send_topics.html', {
+        'topics_with_users': topics_with_users,
+        'active_users': active_users,
+        'total_topics': premium_topics.count(),
+        'total_users': active_users.count()
+    })
+
+# ============= API ENDPOINTS (React / Mobile) =============
+@csrf_exempt
+def register_or_login(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        import json
+        data = json.loads(request.body)
+
+        name = data.get('name', '').strip()
+        code = data.get('code', '').strip().upper()
+
+        # Validation
+        if not name or not code:
+            return JsonResponse({'error': 'Name and code are required'}, status=400)
+
+        if len(code) != 4 or not code.isalnum():
+            return JsonResponse({'error': 'Invalid code format'}, status=400)
+
+        # Check exact match (LOGIN CASE)
+        user = PremiumUser.objects.filter(
+            name__iexact=name,
+            code=code
+        ).first()
+
+        if user:
+            if not user.is_active:
+                return JsonResponse({'error': 'Account is inactive'}, status=403)
+
+            return JsonResponse({
+                'user_id': user.id,
+                'name': user.name,
+                'code': user.code,
+                'is_new': False
+            })
+
+        # Check partial conflicts (SECURITY)
+        if PremiumUser.objects.filter(code=code).exists():
+            return JsonResponse({
+                'error': 'This code is already linked to another user'
+            }, status=403)
+
+        if PremiumUser.objects.filter(name__iexact=name).exists():
+            return JsonResponse({
+                'error': 'This name is already linked to another code'
+            }, status=403)
+
+        # CREATE (FIRST TIME)
+        user = PremiumUser.objects.create(
+            name=name,
+            code=code,
+            is_active=True
+        )
+
+        return JsonResponse({
+            'user_id': user.id,
+            'name': user.name,
+            'code': user.code,
+            'is_new': True
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def get_accessible_topics(request, user_id):
+    """
+    CRITICAL FIX: Returns ONLY topics this specific user can access.
+    - Community topics (everyone can see)
+    - Premium topics where this user is EXPLICITLY assigned
+    """
+    user = get_object_or_404(PremiumUser, id=user_id, is_active=True)
+
+    # Get community topics (available to everyone)
+    community_topics = Topic.objects.filter(is_premium=False)
+    
+    # Get ONLY premium topics where THIS user is explicitly assigned
+    premium_topics = user.accessible_topics.filter(is_premium=True)
+
+    # Combine both sets
+    topics = community_topics.union(premium_topics).order_by('-created_at')
+
+    data = [{
+        'id': t.id,
+        'title': t.title,
+        'is_premium': t.is_premium,
+        'course_id': t.course.id,
+        'course_name': t.course.name
+    } for t in topics]
+
+    return JsonResponse({
+        'user': {
+            'id': user.id,
+            'name': user.name,
+            'code': user.code
+        },
+        'topics': data
+    })
+
+
+# ============= HELPERS (used by scan app) =============
+
+def filter_topics_for_user(topics_queryset, user_id=None):
+    """
+    CRITICAL FUNCTION: Filter topics based on user access.
+    
+    RULES:
+    1. NO user_id → ONLY community topics
+    2. Has user_id → Community topics + ONLY premium topics where user is EXPLICITLY assigned
+    
+    IMPORTANT: Being a "premium user" does NOT automatically grant access to ALL premium topics.
+    You must be EXPLICITLY assigned to each topic via the "Send Premium Topics" page.
+    """
+    if not user_id:
+        # NO USER ID = Only show community topics
+        return topics_queryset.filter(is_premium=False)
+
+    try:
+        # Get the user object
+        user = PremiumUser.objects.get(id=user_id, is_active=True)
+        
+        # Return topics where:
+        # 1. is_premium=False (community - everyone can see), OR
+        # 2. is_premium=True AND this user is in the premium_users list (explicitly assigned)
+        return topics_queryset.filter(
+            Q(is_premium=False) |  # Community topics
+            Q(is_premium=True, premium_users=user)  # ONLY assigned premium topics
+        ).distinct()
+    
+    except PremiumUser.DoesNotExist:
+        # Invalid user_id = Only show community topics
+        return topics_queryset.filter(is_premium=False)
+
+
+def check_topic_access(topic, user_id=None):
+    """
+    Check if a specific user can access a specific topic.
+    
+    RULES:
+    - Community topic → Always True
+    - Premium topic + no user_id → False
+    - Premium topic + user_id → True ONLY if user is explicitly assigned
+    """
+    # Community topics are accessible to everyone
+    if not topic.is_premium:
+        return True
+
+    # Premium topic with no user_id = no access
+    if not user_id:
+        return False
+
+    try:
+        # Check if user exists and is active
+        user = PremiumUser.objects.get(id=user_id, is_active=True)
+        
+        # Check if this user is explicitly assigned to this topic
+        return topic.is_accessible_by(user)
+    
+    except PremiumUser.DoesNotExist:
+        return False
+@login_required
+def delete_premium_topic(request, topic_id):
+    topic = get_object_or_404(Topic, id=topic_id, is_premium=True)
+    assigned_count = topic.premium_users.filter(is_active=True).count()
+    
+    if request.method == "POST":
+        topic.delete()
+        messages.success(request, f"✅ Premium topic '{topic.title}' deleted successfully.")
+        return redirect("manage_premium_topics")
+    
+    # GET request — show confirmation
+    return render(request, 'scan/partials/confirm_delete_topic.html', {
+        'topic': topic,
+        'assigned_count': assigned_count
+    })
+
+def get_active_premium_users_for_select():
+    """Get all active premium users (for assignment dropdowns)"""
+    return PremiumUser.objects.filter(is_active=True).order_by('name')
+
+
+    i want soft delte using the is delete.
+     manage premium topics ;
+     {% extends "scan/partials/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="bg-white rounded-2xl shadow-xl p-8 max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-purple-700">🔒 Manage Premium Topics</h1>
+        <a href="{% url 'home' %}" class="text-gray-600 hover:text-gray-800 text-lg">
+            ← Back to Home
+        </a>
+    </div>
+
+    {% if topics_with_users %}
+        <div class="space-y-6">
+            {% for item in topics_with_users %}
+                <div class="bg-purple-50 border-2 border-purple-300 rounded-2xl p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                    <div class="flex-1">
+                        <h3 class="text-2xl font-bold text-purple-900 mb-2">
+                            🔒 {{ item.topic.title }}
+                        </h3>
+                        <div class="space-y-1 text-gray-700">
+                            <p class="font-medium">{{ item.topic.course.name }}</p>
+                            {% if item.topic.page_range %}
+                                <p class="text-sm">📄 Pages: {{ item.topic.page_range }}</p>
+                            {% endif %}
+                            <p class="text-sm">
+                                Assigned to: 
+                                <span class="font-semibold text-purple-800">
+                                    {{ item.assigned_count }} user{{ item.assigned_count|pluralize }}
+                                </span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Created: {{ item.topic.created_at|date:"M d, Y" }}
+                                {% if item.topic.updated_at != item.topic.created_at %}
+                                    • Updated: {{ item.topic.updated_at|date:"M d, Y" }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3">
+                        <!-- Assign Users -->
+                        <a href="{% url 'manage_topic_assignments' item.topic.id %}"
+                           class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md">
+                            📤 Assign Users
+                        </a>
+
+                        <!-- View Topic (Admin can refine from here) -->
+                        <a href="{% url 'topic_detail' item.topic.id %}"
+                           class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md">
+                            👁️ View Topic
+                        </a>
+
+                        <!-- Delete with Confirmation -->
+                        <form method="post" 
+                              action="{% url 'delete_topic' item.topic.id %}" 
+                              style="display:inline;"
+                              onsubmit="return confirmDelete('{{ item.topic.title|escapejs }}')">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md">
+                                🗑️ Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center">
+            <p class="text-2xl text-gray-600 mb-4">No premium topics yet</p>
+            <p class="text-gray-500 mb-8">
+                Create your first premium topic by scanning pages and choosing "Premium Topic" during save.
+            </p>
+            <a href="{% url 'scan_new' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition shadow-lg">
+                📸 Scan New Pages
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Simple JavaScript Confirmation -->
+<script>
+function confirmDelete(title) {
+    return confirm(
+        `Are you sure you want to permanently delete this premium topic?\n\n` +
+        `"${title}"\n\n` +
+        `This action cannot be undone. All assignments will be lost.`
+    );
+}
+</script>
+
+{% endblock %}
+
+what i want is that the admin should be able to edit and refine a premium topic even after it has been sent. right now when i sent  a premium topic, i can't edit it again it is only allowed tothe person i sent it to. but i want if i sent it i should be able to edit it and refine it or better i should have all access to it from my backend.

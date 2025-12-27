@@ -1,0 +1,113 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-purple-600 mb-1">✏️ Manage Topic Access</h1>
+            <p class="text-gray-600">{{ course.name }} → 🔒 {{ topic.title }}</p>
+        </div>
+        <a href="{% url 'topic_detail' topic.id %}" class="text-gray-600 hover:text-gray-800">← Back</a>
+    </div>
+    
+    <!-- Current Status -->
+    <div class="bg-purple-50 border-2 border-purple-300 rounded-xl p-4 mb-6">
+        <p class="text-purple-800">
+            <strong>Current Access:</strong> 
+            {% if current_user_ids %}
+            {{ current_user_ids|length }} premium user{{ current_user_ids|length|pluralize }}
+            {% else %}
+            No users (topic not visible to anyone)
+            {% endif %}
+        </p>
+    </div>
+    
+    <!-- Assignment Form -->
+    <form method="POST" class="space-y-6">
+        {% csrf_token %}
+        
+        <div class="bg-gray-50 border-2 border-gray-300 rounded-xl p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">👥 Select Premium Users</h3>
+            
+            {% if active_users %}
+            <!-- Select All/None -->
+            <div class="flex gap-3 mb-4">
+                <button type="button" onclick="selectAll()" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                    ✓ Select All
+                </button>
+                <button type="button" onclick="selectNone()" 
+                        class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                    ✗ Deselect All
+                </button>
+                <span class="ml-auto text-gray-600 font-semibold self-center">
+                    <span id="selectedCount">0</span> / {{ active_users.count }} selected
+                </span>
+            </div>
+            
+            <!-- User List -->
+            <div class="space-y-2 max-h-96 overflow-y-auto">
+                {% for user in active_users %}
+                <label class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" 
+                           name="premium_users" 
+                           value="{{ user.id }}"
+                           {% if user.id in current_user_ids %}checked{% endif %}
+                           class="w-5 h-5 text-purple-600"
+                           onchange="updateCount()">
+                    <div class="flex-1">
+                        <p class="font-semibold text-gray-800">{{ user.name }}</p>
+                        <span class="text-sm text-gray-600 font-mono">{{ user.code }}</span>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                        ✓ Active
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-6 text-center">
+                <p class="text-yellow-800 mb-4">No active premium users found!</p>
+                <a href="{% url 'premium_users:manage_users' %}" 
+                   class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
+                    ➕ Create Premium Users
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+            <button type="submit" 
+                    class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition">
+                💾 Update Assignments
+            </button>
+            <a href="{% url 'topic_detail' topic.id %}" 
+               class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-4 px-6 rounded-lg text-center transition">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+function selectAll() {
+    document.querySelectorAll('input[name="premium_users"]').forEach(cb => cb.checked = true);
+    updateCount();
+}
+
+function selectNone() {
+    document.querySelectorAll('input[name="premium_users"]').forEach(cb => cb.checked = false);
+    updateCount();
+}
+
+function updateCount() {
+    const count = document.querySelectorAll('input[name="premium_users"]:checked').length;
+    document.getElementById('selectedCount').textContent = count;
+}
+
+// Initialize count on page load
+updateCount();
+</script>
+{% endblock %}

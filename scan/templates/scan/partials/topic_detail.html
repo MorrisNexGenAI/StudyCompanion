@@ -13,10 +13,16 @@
         <a href="{% url 'course_detail' topic.course.id %}" class="text-gray-600 hover:text-gray-800">← Back</a>
     </div>
     
-    <div class="mb-6">
+    <div class="mb-6 flex items-center gap-3">
         <span class="inline-block text-lg {% if topic.is_refined %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %} px-4 py-2 rounded-full font-bold">
             {{ topic.get_status }}
         </span>
+        
+        {% if topic.is_premium %}
+        <span class="inline-block text-lg bg-purple-100 text-purple-800 px-4 py-2 rounded-full font-bold">
+            🔒 Premium Topic
+        </span>
+        {% endif %}
     </div>
     
     <div class="mb-6">
@@ -34,14 +40,22 @@
     <div class="mb-6">
         <div class="flex items-center justify-between mb-3">
             <h2 class="text-xl font-bold text-gray-800">✨ Refined Summary</h2>
-            <a href="{% url 'edit_refined_summary' topic.id %}" 
-               class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm">
-                {% if topic.is_refined %}✏️ Edit{% else %}➕ Add{% endif %}
-            </a>
-            <a href="{% url 'ai_refine_page' topic.id %}" 
-   class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-lg">
-    🤖 AI Refine
-</a>
+            <div class="flex gap-2">
+                <a href="{% url 'edit_refined_summary' topic.id %}" 
+                   class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm">
+                    {% if topic.is_refined %}✏️ Edit{% else %}➕ Add{% endif %}
+                </a>
+                <a href="{% url 'ai_refine_page' topic.id %}" 
+                   class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-2 px-4 rounded-lg transition shadow-lg text-sm">
+                    🤖 AI Refine
+                </a>
+                {% if topic.is_premium %}
+                <a href="{% url 'manage_topic_assignments' topic.id %}" 
+                   class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition">
+                    👥 Manage Access ({{ topic.premium_users.count }} users)
+                </a>
+                {% endif %}
+            </div>
         </div>
         
         {% if topic.refined_summary %}

@@ -1,0 +1,107 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8 max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-indigo-600">✏️ Edit Premium User</h1>
+        <a href="{% url 'premium_users:manage_users' %}" class="text-gray-600 hover:text-gray-800">← Back to List</a>
+    </div>
+    
+    <!-- Edit Form -->
+    <form method="POST" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Name Field -->
+        <div>
+            <label class="block text-gray-700 font-bold mb-2">Full Name</label>
+            <input type="text" 
+                   name="name" 
+                   value="{{ user.name }}" 
+                   required
+                   maxlength="100"
+                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                   placeholder="e.g., Emmanuel Cooper">
+            <p class="text-sm text-gray-500 mt-1">Maximum 100 characters</p>
+        </div>
+        
+        <!-- Code Field -->
+        <div>
+            <label class="block text-gray-700 font-bold mb-2">Personal Code</label>
+            <input type="text" 
+                   name="code" 
+                   value="{{ user.code }}" 
+                   required
+                   maxlength="4"
+                   pattern="[A-Za-z0-9]{4}"
+                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none font-mono text-lg uppercase"
+                   placeholder="e.g., EC21"
+                   style="text-transform: uppercase;">
+            <p class="text-sm text-gray-500 mt-1">Exactly 4 alphanumeric characters (A-Z, 0-9)</p>
+        </div>
+        
+        <!-- Current Status Display -->
+        <div class="bg-gray-50 border-2 border-gray-300 rounded-lg p-4">
+            <p class="text-gray-700 font-bold mb-2">Current Status:</p>
+            {% if user.is_active %}
+            <span class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">
+                ✓ Active
+            </span>
+            {% else %}
+            <span class="bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-semibold">
+                ✗ Inactive
+            </span>
+            {% endif %}
+            <p class="text-sm text-gray-500 mt-2">
+                To change status, use the Activate/Deactivate button on the manage users page.
+            </p>
+        </div>
+        
+        <!-- Topic Access Info -->
+        <div class="bg-purple-50 border-2 border-purple-300 rounded-lg p-4">
+            <p class="text-purple-800 font-bold mb-2">📚 Current Topic Access:</p>
+            <p class="text-purple-900 text-lg">{{ user.accessible_topics.count }} premium topics</p>
+            <p class="text-sm text-purple-700 mt-2">
+                Topic assignments are managed when creating/editing premium topics.
+            </p>
+        </div>
+        
+        <!-- Metadata Display -->
+        <div class="bg-gray-50 border border-gray-300 rounded-lg p-4 text-sm text-gray-600">
+            <p><strong>User ID:</strong> {{ user.id }}</p>
+            <p><strong>Created:</strong> {{ user.created_at|date:"F d, Y g:i A" }}</p>
+            <p><strong>Last Updated:</strong> {{ user.updated_at|date:"F d, Y g:i A" }}</p>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+            <button type="submit" 
+                    class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                💾 Save Changes
+            </button>
+            
+            <a href="{% url 'premium_users:manage_users' %}" 
+               class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-center transition">
+                Cancel
+            </a>
+        </div>
+    </form>
+    
+    <!-- Warning Banner -->
+    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mt-6">
+        <p class="text-yellow-800 font-bold mb-2">⚠️ Important Notes:</p>
+        <ul class="list-disc list-inside text-sm text-yellow-900 space-y-1">
+            <li>Changing the code will affect user login (they must use new code)</li>
+            <li>Name + Code combination must be unique</li>
+            <li>Code will be automatically converted to uppercase</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+// Auto-uppercase code input as user types
+document.querySelector('input[name="code"]').addEventListener('input', function(e) {
+    this.value = this.value.toUpperCase();
+});
+</script>
+{% endblock %}

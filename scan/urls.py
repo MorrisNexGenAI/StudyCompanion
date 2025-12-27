@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 from . import views
 from . import ai_views
 
@@ -29,10 +29,16 @@ urlpatterns = [
     path('api/departments/<int:dept_id>/courses/', views.api_department_courses, name='api_department_courses'),
     path('api/courses/<int:course_id>/topics/', views.api_course_topics, name='api_course_topics'),
     path('api/topics/<int:topic_id>/', views.api_topic_detail, name='api_topic_detail'),
-
+    path('topic/<int:topic_id>/manage-assignments/', views.manage_topic_assignments, name='manage_topic_assignments'),
+     path('manage-premium-topics/', views.manage_premium_topics, name='manage_premium_topics'),
       # AI Refine Routes
     path('topics/<int:topic_id>/ai-refine/', ai_views.ai_refine_page, name='ai_refine_page'),
     path('topics/<int:topic_id>/generate-ai/', ai_views.generate_ai_refine, name='generate_ai_refine'),
     path('topics/<int:topic_id>/select-ai/', ai_views.select_ai_refine, name='select_ai_refine'),
     path('ai-status/', ai_views.ai_status, name='ai_status'),
+
+
+    # Premium User Management Setting
+    path("premium/", include("premium_users.urls", namespace="premium_users"))
 ]
+

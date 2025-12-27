@@ -1,0 +1,176 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+        <h1 class="text-3xl font-bold text-purple-600">📤 Send Premium Topics</h1>
+        <a href="{% url 'home' %}" class="text-gray-600 hover:text-gray-800">
+            ← Back to Home
+        </a>
+    </div>
+
+    <!-- ✅ GLOBAL MANAGE BUTTON (ALWAYS AVAILABLE) -->
+    <div class="mb-6">
+        <a href="{% url 'manage_premium_topics' %}"
+           class="inline-block bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition">
+            🔒 Go to Manage Premium Topics
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4">
+            <p class="text-sm text-purple-600 font-semibold">Premium Topics</p>
+            <p class="text-3xl font-bold text-purple-800">{{ total_topics }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
+            <p class="text-sm text-green-600 font-semibold">Active Premium Users</p>
+            <p class="text-3xl font-bold text-green-800">{{ total_users }}</p>
+        </div>
+    </div>
+
+    <!-- Info Banner -->
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-6 mb-6">
+        <h3 class="font-bold text-blue-800 mb-3">ℹ️ How to Send Premium Topics:</h3>
+        <ol class="space-y-2 text-sm text-blue-900">
+            <li>1️⃣ Find the premium topic you want to send</li>
+            <li>2️⃣ Click "📤 Send to Users"</li>
+            <li>3️⃣ Select users who paid</li>
+            <li>4️⃣ Click "Send to Selected Users"</li>
+            <li>5️⃣ Only those users will see the topic</li>
+        </ol>
+    </div>
+
+    <!-- Premium Topics List -->
+    {% if topics_with_users %}
+    <div class="space-y-4">
+        {% for item in topics_with_users %}
+        <div class="bg-purple-50 border-2 border-purple-300 rounded-xl p-6">
+
+            <!-- Topic Header -->
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex-1">
+                    <h3 class="text-xl font-bold text-purple-800 mb-1">
+                        🔒 {{ item.topic.title }}
+                    </h3>
+                    <p class="text-gray-600">{{ item.topic.course.name }}</p>
+                    {% if item.topic.page_range %}
+                    <p class="text-sm text-gray-500">📄 {{ item.topic.page_range }}</p>
+                    {% endif %}
+                </div>
+                <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
+                    {{ item.assigned_count }} user{{ item.assigned_count|pluralize }}
+                </span>
+            </div>
+
+            <!-- Assigned Users -->
+            {% if item.assigned_users %}
+            <div class="mb-4">
+                <p class="text-sm font-semibold text-gray-700 mb-2">Currently sent to:</p>
+                <div class="flex flex-wrap gap-2">
+                    {% for user in item.assigned_users %}
+                    <span class="bg-white border border-purple-300 text-purple-800 px-3 py-1 rounded-full text-sm">
+                        {{ user.name }} ({{ user.code }})
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="mb-4 bg-yellow-50 border border-yellow-300 rounded-lg p-3">
+                <p class="text-yellow-800 text-sm">⚠️ Not sent to anyone yet</p>
+            </div>
+            {% endif %}
+
+            <!-- Assigned Users JSON -->
+            <script id="assigned-users-{{ item.topic.id }}" type="application/json">
+                {{ item.assigned_user_ids|safe }}
+            </script>
+
+            <!-- Send Button -->
+            <button
+                data-topic-id="{{ item.topic.id }}"
+                data-topic-title="{{ item.topic.title|escapejs }}"
+                onclick="openSendModalFromButton(this)"
+                class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg transition">
+                📤 Send to Users
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-8 text-center">
+        <p class="text-xl text-gray-600 mb-4">No premium topics yet!</p>
+        <p class="text-gray-500 mb-6">
+            Create a premium topic first by scanning pages and selecting "Premium Topic".
+        </p>
+        <a href="{% url 'scan_new' %}"
+           class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition">
+            📸 Scan New Pages
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal (UNCHANGED) -->
+<div id="sendModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-purple-600">Send Topic to Users</h2>
+            <button onclick="closeSendModal()" class="text-gray-600 text-2xl">×</button>
+        </div>
+
+        <p class="text-gray-600 mb-6" id="modalTopicTitle"></p>
+
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="topic_id" id="modalTopicId">
+
+            <div class="bg-gray-50 border-2 border-gray-300 rounded-xl p-4 mb-4">
+                <div class="flex gap-3 mb-4">
+                    <button type="button" onclick="selectAll()" class="bg-green-600 text-white px-4 py-2 rounded-lg">
+                        ✓ Select All
+                    </button>
+                    <button type="button" onclick="selectNone()" class="bg-gray-600 text-white px-4 py-2 rounded-lg">
+                        ✗ Deselect All
+                    </button>
+                    <span class="ml-auto font-semibold">
+                        <span id="selectedCount">0</span> / {{ total_users }} selected
+                    </span>
+                </div>
+
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    {% for user in active_users %}
+                    <label class="flex items-center gap-3 p-3 bg-white border rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="checkbox"
+                               name="premium_users"
+                               value="{{ user.id }}"
+                               class="user-checkbox w-5 h-5"
+                               onchange="updateCount()">
+                        <div class="flex-1">
+                            <p class="font-semibold">{{ user.name }}</p>
+                            <span class="text-sm font-mono text-gray-600">{{ user.code }}</span>
+                        </div>
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Active</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition">
+                    📤 Send to Selected Users
+                </button>
+                <button type="button"
+                        onclick="closeSendModal()"
+                        class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

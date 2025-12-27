@@ -1,0 +1,182 @@
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold text-indigo-600">👥 Manage Premium Users</h1>
+        <a href="{% url 'home' %}" class="text-gray-600 hover:text-gray-800">← Back to Home</a>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">
+            <p class="text-sm text-blue-600 font-semibold">Total Users</p>
+            <p class="text-3xl font-bold text-blue-800">{{ total_count }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
+            <p class="text-sm text-green-600 font-semibold">Active Users</p>
+            <p class="text-3xl font-bold text-green-800">{{ active_count }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 rounded-xl p-4">
+            <p class="text-sm text-red-600 font-semibold">Inactive Users</p>
+            <p class="text-3xl font-bold text-red-800">{{ inactive_count }}</p>
+        </div>
+    </div>
+    
+    <!-- Search & Filter Bar -->
+    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+        <form method="GET" class="grid md:grid-cols-3 gap-4">
+            <!-- Search Input -->
+            <div class="md:col-span-2">
+                <input type="text" 
+                       name="search" 
+                       value="{{ search }}" 
+                       placeholder="🔍 Search by name or code..."
+                       class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none">
+            </div>
+            
+            <!-- Status Filter -->
+            <div class="flex gap-2">
+                <select name="status" 
+                        class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>✓ Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>✗ Inactive</option>
+                </select>
+                
+                <button type="submit" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-lg transition">
+                    Filter
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Create New User Button -->
+    <div class="mb-6">
+        <a href="{% url 'premium_users:add_user' %}" 
+           class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition">
+            ➕ Create New Premium User
+        </a>
+    </div>
+    
+    <!-- Users List -->
+    {% if users %}
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-100 border-b-2 border-gray-300">
+                <tr>
+                    <th class="text-left py-3 px-4 font-bold text-gray-700">Name</th>
+                    <th class="text-left py-3 px-4 font-bold text-gray-700">Code</th>
+                    <th class="text-center py-3 px-4 font-bold text-gray-700">Status</th>
+                    <th class="text-center py-3 px-4 font-bold text-gray-700">Topics Access</th>
+                    <th class="text-center py-3 px-4 font-bold text-gray-700">Joined Date</th>
+                    <th class="text-center py-3 px-4 font-bold text-gray-700">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                    <!-- Name -->
+                    <td class="py-3 px-4">
+                        <p class="font-semibold text-gray-800">{{ user.name }}</p>
+                    </td>
+                    
+                    <!-- Code -->
+                    <td class="py-3 px-4">
+                        <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-mono font-bold">
+                            {{ user.code }}
+                        </span>
+                    </td>
+                    
+                    <!-- Status -->
+                    <td class="py-3 px-4 text-center">
+                        {% if user.is_active %}
+                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+                            ✓ Active
+                        </span>
+                        {% else %}
+                        <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
+                            ✗ Inactive
+                        </span>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- Topics Count -->
+                    <td class="py-3 px-4 text-center">
+                        <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
+                            {{ user.accessible_topics.count }} topics
+                        </span>
+                    </td>
+                    
+                    <!-- Joined Date -->
+                    <td class="py-3 px-4 text-center text-gray-600 text-sm">
+                        {{ user.created_at|date:"M d, Y" }}
+                    </td>
+                    
+                    <!-- Actions -->
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex gap-2 justify-center">
+                            <!-- Edit Button -->
+                            <a href="{% url 'premium_users:edit_user' user.id %}" 
+                               class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-semibold transition">
+                                ✏️ Edit
+                            </a>
+                            
+                            <!-- Toggle Status Button -->
+                            <form method="POST" action="{% url 'premium_users:toggle_status' user.id %}" class="inline">
+                                {% csrf_token %}
+                                {% if user.is_active %}
+                                <button type="submit" 
+                                        class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm font-semibold transition">
+                                    🔒 Deactivate
+                                </button>
+                                {% else %}
+                                <button type="submit" 
+                                        class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-semibold transition">
+                                    ✓ Activate
+                                </button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-8 text-center">
+        <p class="text-xl text-gray-600 mb-4">No premium users found!</p>
+        
+        {% if search or status_filter != 'all' %}
+        <p class="text-gray-500 mb-6">Try adjusting your search or filters.</p>
+        <a href="{% url 'premium_users:manage_users' %}" 
+           class="inline-block bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition">
+            Clear Filters
+        </a>
+        {% else %}
+        <p class="text-gray-500 mb-6">Create your first premium user to get started.</p>
+
+        <a href="{% url 'premium_users:add_user' %}" 
+           class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition">
+            ➕ Create First User
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <!-- Info Banner -->
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-6 mt-6">
+        <h3 class="font-bold text-blue-800 mb-3">ℹ️ About Premium Users:</h3>
+        <div class="space-y-2 text-sm text-blue-900">
+            <p><strong>Active Users:</strong> Can access premium topics assigned to them</p>
+            <p><strong>Inactive Users:</strong> Cannot access any premium content (soft-deleted)</p>
+            <p><strong>Code Format:</strong> Exactly 4 characters (A-Z, 0-9), automatically uppercase</p>
+            <p><strong>Unique Identity:</strong> Each name + code combination must be unique</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -3,7 +3,9 @@ import os
 import dj_database_url
 from dotenv import load_dotenv
 
+# =========================
 # Load environment variables
+# =========================
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,14 +19,12 @@ SECRET_KEY = os.environ.get(
 )
 
 DEBUG = os.environ.get("DEBUG", "False") == "True"
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get(
-        "ALLOWED_HOSTS"
-    ).split(",")
-    if host.strip()
-]
 
+#ALLOWED_HOSTS = os.environ.get(
+   # "ALLOWED_HOSTS",
+    #"localhost,127.0.0.1,http://10.248.248.46:8000",
+#)#.split(",")
+ALLOWED_HOSTS = ["*"]
 
 # =========================
 # Installed Apps
@@ -36,28 +36,27 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',  # For PWA API access
+
+    # Third-party
+    'corsheaders',
+
+    # Local apps
     'core',
     'scan',
+    'premium_users',
 ]
 
+# =========================
+# API Keys
+# =========================
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 
 # =========================
-# Middleware
+# Middleware (ORDER MATTERS)
 # =========================
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # MUST be before CommonMiddleware
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    'corsheaders.middleware.CorsMiddleware',  # CORS must be first
+    'corsheaders.middleware.CorsMiddleware',  # MUST be first
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -69,28 +68,35 @@ MIDDLEWARE = [
 ]
 
 # =========================
-# CORS Configuration
+# CORS Configuration (CRITICAL FIX)
 # =========================
 CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get(
-        "CORS_ALLOWED_ORIGINS"
-    ).split(",")
-    if origin.strip()
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "http://0.0.0.0:8000",
+    "http://10.248.248.46:8000",
+    "https://studycompanions.netlify.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Allow custom headers
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'X-User-ID',
+]
 
 # =========================
 # CSRF Configuration
 # =========================
 CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get(
-        "CSRF_TRUSTED_ORIGINS"
-        ""
-    ).split(",")
-    if origin.strip()
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "http://0.0.0.0:8000",
+    "https://studycompanions.netlify.app",
 ]
 
 # =========================
@@ -116,10 +122,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "scanner.wsgi.application"
 
-# Database Configuration
+# =========================
+# Database
+# =========================
 DATABASE_URL = os.environ.get("DATABASE_URL")
+
 if DATABASE_URL:
-    # Use PostgreSQL from environment variable (Render/NeonDB)
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
@@ -128,7 +136,6 @@ if DATABASE_URL:
         )
     }
 else:
-    # Fall back to SQLite for local development
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -136,30 +143,36 @@ else:
         }
     }
 
-# Static files
+# =========================
+# Static & Media Files
+# =========================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# OCR endpoint
+# =========================
+# OCR Endpoint
+# =========================
 COLAB_OCR_URL = os.environ.get(
     "COLAB_OCR_URL",
-   "https://talon-bionomic-apogamously.ngrok-free.dev"
+    "https://talon-bionomic-apogamously.ngrok-free.dev"
 )
 
-# Security headers
+# =========================
+# Security Headers
+# =========================
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'SAMEORIGIN'  # Changed from DENY to allow PWA iframe if needed
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 
-# Production security settings
+# =========================
+# Production Security
+# =========================
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
@@ -168,22 +181,7 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-# CORS Configuration (for PWA to access API)
-CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get("CORS_ALLOWED_ORIGINS").split(",")
-    if origin.strip()
-]
-
-# Allow credentials (cookies, authorization headers)
-CORS_ALLOW_CREDENTIALS = True
-
-# CSRF trusted origins (must match CORS origins)
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS").split(",")
-    if origin.strip()
-]
-
-# Default primary key
+# =========================
+# Default PK
+# =========================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

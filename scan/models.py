@@ -1,6 +1,6 @@
 from django.db import models
 from core.models import BaseModel
-
+from premium_users.models import PremiumUser
 
 class Department(BaseModel):
     """Represents a department/subject area (e.g., Health Science, Engineering)"""
@@ -28,6 +28,7 @@ class Course(BaseModel):
     departments = models.ManyToManyField(Department, blank=True, related_name='courses')
     year = models.CharField(max_length=20, blank=True)
     description = models.TextField(blank=True)
+    is_deleted = models.BooleanField(default=False)  # SOFT DELETE
     
     class Meta:
         ordering = ['name']
@@ -36,10 +37,10 @@ class Course(BaseModel):
         return self.name
     
     def get_total_topics(self):
-        return self.topics.count()
+        return self.topics.filter(is_deleted=False).count()
     
     def get_refined_count(self):
-        return self.topics.filter(refined_summary__isnull=False).exclude(refined_summary='').count()
+        return self.topics.filter(is_deleted=False, refined_summary__isnull=False).exclude(refined_summary='').count()
     
     def get_departments_display(self):
         """Return comma-separated department names"""
@@ -48,6 +49,7 @@ class Course(BaseModel):
     def get_full_refined_text(self):
         """Combine all refined summaries in order"""
         topics = self.topics.filter(
+            is_deleted=False,
             refined_summary__isnull=False
         ).exclude(refined_summary='').order_by('order', 'created_at')
      
@@ -69,6 +71,13 @@ class Course(BaseModel):
             full_text += "-" * 50 + "\n\n"
         
         return full_text
+    
+    def soft_delete(self):
+        """Soft delete course and all its topics"""
+        self.is_deleted = True
+        self.save(update_fields=['is_deleted', 'updated_at'])
+        # Also soft delete all topics
+        self.topics.update(is_deleted=True)
 
 
 class Topic(BaseModel):
@@ -79,12 +88,56 @@ class Topic(BaseModel):
     refined_summary = models.TextField(blank=True)
     page_range = models.CharField(max_length=50, blank=True)
     order = models.IntegerField(default=0)
+    is_premium = models.BooleanField(
+        default=False,
+        help_text="If True, only selected premium users can access this topic"
+    )
+    is_deleted = models.BooleanField(default=False)  # SOFT DELETE
+    
+    premium_users = models.ManyToManyField(
+        'premium_users.PremiumUser',
+        blank=True,
+        related_name='accessible_topics',
+        limit_choices_to={'is_active': True},
+        help_text="Select users who can access this premium topic"
+    )
     
     class Meta:
         ordering = ['course', 'order', 'created_at']
+        indexes = [
+            models.Index(fields=['is_premium']),
+            models.Index(fields=['is_deleted']),
+        ]
     
     def __str__(self):
-        return f"{self.course.name} - {self.title}"
+        premium_badge = "🔒 " if self.is_premium else ""
+        return f"{premium_badge}{self.course.name} - {self.title}"
+    
+    def is_accessible_by(self, user):
+        """Check if a user can access this topic."""
+        if not self.is_premium:
+            return True
+        
+        if isinstance(user, int):
+            return self.premium_users.filter(id=user, is_active=True).exists()
+        else:
+            return self.premium_users.filter(id=user.id, is_active=True).exists()
+    
+    def add_premium_user(self, user):
+        """Add a user to this premium topic."""
+        if not self.is_premium:
+            raise ValueError("Cannot add users to community topics")
+        self.premium_users.add(user)
+    
+    def remove_premium_user(self, user):
+        """Remove a user from this premium topic."""
+        self.premium_users.remove(user)
+    
+    def get_accessible_user_count(self):
+        """Count how many active users can access this topic."""
+        if not self.is_premium:
+            return "All users"
+        return self.premium_users.filter(is_active=True).count()
     
     def is_refined(self):
         """Check if topic has refined summary"""
@@ -93,6 +146,12 @@ class Topic(BaseModel):
     def get_status(self):
         """Get status badge"""
         return "✓ Refined" if self.is_refined() else "✏ Raw Only"
+    
+    def soft_delete(self):
+        """Soft delete topic"""
+        self.is_deleted = True
+        self.save(update_fields=['is_deleted', 'updated_at'])
+
 
 class AIRefine(BaseModel):
     """Stores AI-generated refined summaries from different providers"""
@@ -114,12 +173,12 @@ class AIRefine(BaseModel):
     refined_text = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     error_message = models.TextField(blank=True)
-    processing_time = models.FloatField(null=True, blank=True)  # seconds
-    qa_count = models.IntegerField(default=0)  # number of Q&As generated
+    processing_time = models.FloatField(null=True, blank=True)
+    qa_count = models.IntegerField(default=0)
     
     class Meta:
         ordering = ['-created_at']
-        unique_together = ['topic', 'provider']  # One refine per provider per topic
+        unique_together = ['topic', 'provider']
     
     def __str__(self):
         return f"{self.topic.title} - {self.get_provider_display()} ({self.status})"

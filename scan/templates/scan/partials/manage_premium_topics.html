@@ -1,0 +1,95 @@
+{% extends "scan/partials/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="bg-white rounded-2xl shadow-xl p-8 max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-purple-700">🔒 Manage Premium Topics</h1>
+        <a href="{% url 'home' %}" class="text-gray-600 hover:text-gray-800 text-lg">
+            ← Back to Home
+        </a>
+    </div>
+
+    {% if topics_with_users %}
+        <div class="space-y-6">
+            {% for item in topics_with_users %}
+                <div class="bg-purple-50 border-2 border-purple-300 rounded-2xl p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                    <div class="flex-1">
+                        <h3 class="text-2xl font-bold text-purple-900 mb-2">
+                            🔒 {{ item.topic.title }}
+                        </h3>
+                        <div class="space-y-1 text-gray-700">
+                            <p class="font-medium">{{ item.topic.course.name }}</p>
+                            {% if item.topic.page_range %}
+                                <p class="text-sm">📄 Pages: {{ item.topic.page_range }}</p>
+                            {% endif %}
+                            <p class="text-sm">
+                                Assigned to: 
+                                <span class="font-semibold text-purple-800">
+                                    {{ item.assigned_count }} user{{ item.assigned_count|pluralize }}
+                                </span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Created: {{ item.topic.created_at|date:"M d, Y" }}
+                                {% if item.topic.updated_at != item.topic.created_at %}
+                                    • Updated: {{ item.topic.updated_at|date:"M d, Y" }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3">
+                        <!-- Assign Users -->
+                        <a href="{% url 'manage_topic_assignments' item.topic.id %}"
+                           class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md">
+                            📤 Assign Users
+                        </a>
+
+                        <!-- View Topic (Admin can refine from here) -->
+                        <a href="{% url 'topic_detail' item.topic.id %}"
+                           class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md">
+                            👁️ View Topic
+                        </a>
+
+                        <!-- Delete with Confirmation -->
+                        <form method="post" 
+                              action="{% url 'delete_topic' item.topic.id %}" 
+                              style="display:inline;"
+                              onsubmit="return confirmDelete('{{ item.topic.title|escapejs }}')">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md">
+                                🗑️ Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center">
+            <p class="text-2xl text-gray-600 mb-4">No premium topics yet</p>
+            <p class="text-gray-500 mb-8">
+                Create your first premium topic by scanning pages and choosing "Premium Topic" during save.
+            </p>
+            <a href="{% url 'scan_new' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition shadow-lg">
+                📸 Scan New Pages
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Simple JavaScript Confirmation -->
+<script>
+function confirmDelete(title) {
+    return confirm(
+        `Are you sure you want to permanently delete this premium topic?\n\n` +
+        `"${title}"\n\n` +
+        `This action cannot be undone. All assignments will be lost.`
+    );
+}
+</script>
+
+{% endblock %}

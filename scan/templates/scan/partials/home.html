@@ -4,7 +4,8 @@
   <h1 class="text-4xl font-bold text-center text-indigo-600 mb-8">📚 Study Companion</h1>
   
   <!-- Main Action Cards -->
-  <div class="grid md:grid-cols-2 gap-6 mb-8">
+  <div class="grid md:grid-cols-3 gap-6 mb-8">
+
     <!-- Scan New -->
     <a href="{% url 'scan_new' %}" class="block">
       <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-8 text-white hover:shadow-2xl transition transform hover:-translate-y-1">
@@ -20,6 +21,15 @@
         <div class="text-6xl mb-4">📚</div>
         <h2 class="text-2xl font-bold mb-2">My Notes Library</h2>
         <p class="text-green-100">View saved courses</p>
+      </div>
+    </a>
+
+    <!-- Send Premium Topics -->
+    <a href="{% url 'premium_users:send_topics' %}" class="block">
+      <div class="bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl p-8 text-white hover:shadow-2xl transition transform hover:-translate-y-1">
+        <div class="text-6xl mb-4">📤</div>
+        <h2 class="text-2xl font-bold mb-2">Send Premium Topics</h2>
+        <p class="text-purple-100">Assign topics to paid users</p>
       </div>
     </a>
   </div>
@@ -44,6 +54,12 @@
         <span class="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold flex-shrink-0">4</span>
         <p><strong>Print:</strong> Instant copy & print anytime</p>
       </div>
+    </div>
+    
+    <div class="mt-6 pt-6 border-t border-gray-300">
+      <a href="{% url 'premium_users:manage_users' %}" class="text-indigo-600 hover:text-indigo-800 font-semibold">
+        👥 Manage Premium Users
+      </a>
     </div>
   </div>
 </div>
