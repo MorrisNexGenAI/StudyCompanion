@@ -1,6 +1,6 @@
-# Study Companion Backend - Django API & AI Integration
+# Study Companion Backend - Django API & Premium Management
 
-A Django-powered backend for OCR text extraction, AI-powered study note refinement, and RESTful API for mobile/web clients.
+A Django-powered backend for OCR text extraction, AI-powered study note refinement, premium user management, and RESTful API for mobile/web clients.
 
 ---
 
@@ -9,9 +9,10 @@ A Django-powered backend for OCR text extraction, AI-powered study note refineme
 Study Companion Backend provides:
 1. **OCR Processing** - Extracts text from images via Google Cloud Vision (Colab GPU)
 2. **AI Refinement** - Transforms messy OCR into structured Q&A using Gemini & Groq
-3. **REST API** - Serves data to React PWA frontend
-4. **Department System** - Organizes courses by academic departments
-5. **Admin Panel** - Manage courses, topics, and departments
+3. **Premium System** - Name+code authentication with topic access control
+4. **REST API** - Serves filtered data to React PWA frontend
+5. **Department System** - Organizes courses by academic departments
+6. **Admin Panel** - Manage courses, topics, departments, and premium users
 
 ---
 
@@ -29,6 +30,7 @@ Study Companion Backend provides:
 │  ┌──────────────┬──────────────┬─────────────────┐ │
 │  │ Departments  │    Topics    │   AI Refine     │ │
 │  │   Courses    │  Raw/Refined │  Gemini/Groq    │ │
+│  │  Premium     │  Filtering   │   Access Ctrl   │ │
 │  └──────────────┴──────────────┴─────────────────┘ │
 └──────────────────┬──────────────────────────────────┘
                    │
@@ -155,6 +157,15 @@ cafphy-backend/
 │   └── management/commands/
 │       └── seed_departments.py
 │
+├── premium_users/             # NEW: Premium user app
+│   ├── models.py              # PremiumUser model
+│   ├── views.py               # Premium user management + API
+│   ├── urls.py                # Premium routes
+│   └── templates/             # Premium user templates
+│       └── premium_users/
+│           ├── manage_users.html
+│           └── send_topics.html
+│
 ├── core/                      # Base app
 │   └── models.py              # BaseModel (timestamps)
 │
@@ -163,7 +174,9 @@ cafphy-backend/
 ├── db.sqlite3                 # SQLite database (dev)
 ├── requirements.txt           # Python dependencies
 ├── .env                       # Environment variables
-├── PHASE1.md                  # Migration documentation
+├── docs/                      # Documentation
+│   ├── PHASE1.md              # AI & Department migration
+│   └── PHASE2.md              # Premium system
 └── README.md                  # This file
 ```
 
@@ -188,6 +201,7 @@ Example: "Health Science", "Criminal Justice", "Business"
 - year (max 20 chars, e.g., "2024")
 - description (text)
 - departments (ManyToMany → Department)
+- is_deleted (soft delete flag)
 - created_at (auto)
 - updated_at (auto)
 
@@ -203,10 +217,27 @@ Example: "BIO 202", departments=["Health Science"]
 - refined_summary (manual or AI, text)
 - page_range (e.g., "Pages 1-5")
 - order (integer for sorting)
+- is_premium (boolean)
+- is_deleted (soft delete flag)
+- premium_users (ManyToMany → PremiumUser)
 - created_at (auto)
 - updated_at (auto)
 
 Example: "Cell Structure - Pages 1-5"
+```
+
+### PremiumUser (NEW in Phase 2)
+```python
+- id (Primary Key)
+- name (max 100 chars)
+- code (4 alphanumeric chars, unique)
+- is_active (boolean, default True)
+- created_at (auto)
+- updated_at (auto)
+
+Unique together: (name, code)
+
+Example: name="Emmanuel Cooper", code="EC21"
 ```
 
 ### AIRefine
@@ -222,14 +253,43 @@ Example: "Cell Structure - Pages 1-5"
 - created_at (auto)
 - updated_at (auto)
 
-Unique: (topic, provider) - one AI refine per provider per topic
+Unique: (topic, provider)
 ```
 
 ---
 
 ## 🔌 API Endpoints
 
-### Public API (No Authentication Required)
+### Premium Authentication (NEW)
+
+**Register or Login**
+```http
+POST /premium/api/register-or-login/
+Content-Type: application/json
+
+Body:
+{
+  "name": "Emmanuel Cooper",
+  "code": "EC21"
+}
+
+Success Response (201):
+{
+  "user_id": 2,
+  "name": "Emmanuel Cooper",
+  "code": "EC21",
+  "is_new": true
+}
+
+Error Response (400/403):
+{
+  "error": "This code is already linked to another user"
+}
+```
+
+---
+
+### Public API (Filtered by User)
 
 #### Departments
 
@@ -241,14 +301,13 @@ Response:
 ```json
 [
   {"id": 1, "name": "Health Science"},
-  {"id": 2, "name": "Criminal Justice"},
-  {"id": 3, "name": "Business"}
+  {"id": 2, "name": "Criminal Justice"}
 ]
 ```
 
 **Get courses in department**
 ```http
-GET /api/departments/<dept_id>/courses/
+GET /api/departments/<dept_id>/courses/?user_id=2
 ```
 Response:
 ```json
@@ -258,19 +317,19 @@ Response:
     "name": "BIO 202",
     "year": "2024",
     "departments": [{"id": 1, "name": "Health Science"}],
-    "topic_count": 10,
-    "refined_count": 8
+    "topic_count": 5,
+    "refined_count": 3
   }
 ]
 ```
 
 ---
 
-#### Courses & Topics
+#### Topics (Access Controlled)
 
-**Get topics in course (metadata only)**
+**Get topics in course**
 ```http
-GET /api/courses/<course_id>/topics/
+GET /api/courses/<course_id>/topics/?user_id=2
 ```
 Response:
 ```json
@@ -279,29 +338,45 @@ Response:
     "id": 1,
     "title": "Cell Structure",
     "page_range": "Pages 1-5",
-    "updated_at": 1703001234,
-    "is_refined": true
+    "is_premium": false,
+    "is_refined": true,
+    "updated_at": 1703001234
+  },
+  {
+    "id": 5,
+    "title": "Advanced Genetics",
+    "page_range": "Pages 10-15",
+    "is_premium": true,
+    "is_refined": true,
+    "updated_at": 1703002000
   }
 ]
 ```
 
-**Get full topic with content**
+**Get full topic**
 ```http
-GET /api/topics/<topic_id>/
+GET /api/topics/<topic_id>/?user_id=2
 ```
-Response:
+Success (200):
 ```json
 {
-  "id": 1,
-  "title": "Cell Structure",
-  "page_range": "Pages 1-5",
-  "refined_summary": "Q1: What is a cell?\nAnswer: ...",
-  "raw_text": "--- Page 1 ---\ncel structur...",
+  "id": 5,
+  "title": "Advanced Genetics",
+  "refined_summary": "Q1: What is genetics?\n...",
+  "raw_text": "genetics is...",
   "course_name": "BIO 202",
-  "course_year": "2024",
   "departments": ["Health Science"],
-  "updated_at": 1703001234,
-  "created_at": 1702995000
+  "is_premium": true,
+  "updated_at": 1703002000
+}
+```
+
+Access Denied (403):
+```json
+{
+  "error": "Access denied. This is a premium topic.",
+  "is_premium": true,
+  "requires_login": true
 }
 ```
 
@@ -316,23 +391,6 @@ Content-Type: application/x-www-form-urlencoded
 
 provider=gemini  # or 'groq' or 'both'
 ```
-Response:
-```json
-{
-  "gemini": {
-    "success": true,
-    "qa_count": 15,
-    "processing_time": 8.2,
-    "preview": "Q1: What is a cell?\nAnswer: ..."
-  },
-  "groq": {
-    "success": true,
-    "qa_count": 12,
-    "processing_time": 3.5,
-    "preview": "Q1: What is a cell?\nAnswer: ..."
-  }
-}
-```
 
 **Select AI refine**
 ```http
@@ -341,25 +399,77 @@ Content-Type: application/x-www-form-urlencoded
 
 selection=gemini  # or 'groq' or 'manual'
 ```
-Saves selected refine to `topic.refined_summary`
 
 **Check AI status**
 ```http
 GET /ai-status/
 ```
-Response:
-```json
-{
-  "gemini": {
-    "ok": true,
-    "message": "Gemini connection successful"
-  },
-  "groq": {
-    "ok": true,
-    "message": "Groq connection successful (using llama-3.3-70b-versatile)"
-  },
-  "overall": true
-}
+
+---
+
+## 🔐 Premium User Management
+
+### Admin Interface
+
+**Manage Premium Users**
+- URL: `/premium/manage/`
+- Create, edit, activate/deactivate users
+- Search by name or code
+- Filter by active/inactive
+
+**Send Premium Topics**
+- URL: `/premium/send-topics/`
+- Assign premium topics to specific users
+- Bulk select users
+- See who has access to what
+
+**Manage Premium Topics**
+- URL: `/manage-premium-topics/`
+- View all premium topics
+- Edit assignments
+- Soft delete topics
+
+---
+
+### Access Control Logic
+
+**Topic Filtering:**
+```python
+def filter_topics_for_user(topics_queryset, user_id=None):
+    if not user_id:
+        # No user_id = only community topics
+        return topics_queryset.filter(is_premium=False, is_deleted=False)
+    
+    try:
+        user = PremiumUser.objects.get(id=user_id, is_active=True)
+        
+        # Return:
+        # 1. All community topics, OR
+        # 2. Premium topics where user is explicitly assigned
+        return topics_queryset.filter(
+            Q(is_premium=False) | Q(is_premium=True, premium_users=user),
+            is_deleted=False
+        ).distinct()
+    except PremiumUser.DoesNotExist:
+        return topics_queryset.filter(is_premium=False, is_deleted=False)
+```
+
+**Topic Access Check:**
+```python
+def check_topic_access(topic, user_id=None):
+    # Community topics = always accessible
+    if not topic.is_premium:
+        return True
+    
+    # Premium topics require explicit assignment
+    if not user_id:
+        return False
+    
+    try:
+        user = PremiumUser.objects.get(id=user_id, is_active=True)
+        return topic.is_accessible_by(user)
+    except PremiumUser.DoesNotExist:
+        return False
 ```
 
 ---
@@ -369,50 +479,24 @@ Response:
 ### Gemini (Google)
 
 **Model:** `gemini-2.5-flash`
-- **Speed:** 5-10 seconds
-- **Quality:** Detailed, comprehensive
-- **Token Limit:** 8000 output tokens
-- **Cost:** Free tier available
-- **Best For:** Complex topics, detailed explanations
+- Speed: 5-10 seconds
+- Quality: Detailed, comprehensive
+- Token Limit: 8000 output tokens
 
 ### Groq (Llama 3)
 
 **Model:** Auto-detected (llama-3.3 > 3.1 > 3.0)
-- **Speed:** 2-5 seconds (faster)
-- **Quality:** Concise, practical
-- **Token Limit:** 6000 output tokens
-- **Cost:** Free tier available
-- **Best For:** Quick summaries, simple topics
-
-### AI Output Format
-
-```
-Q1: What causes malaria?
-Answer: Malaria is caused by Plasmodium parasites transmitted by Anopheles mosquitoes.
-
-Explanation: Understanding the cause helps in prevention and treatment strategies.
-
-Example: In Monrovia, malaria cases spike during rainy season when mosquito breeding increases in standing water.
-
----
-
-Q2: What are the symptoms of malaria?
-Answer: Fever, chills, headache, nausea, and body aches are common symptoms.
-
-Explanation: Early recognition of symptoms allows for timely treatment and prevents complications.
-
-Example: At JFK Hospital, patients presenting with fever and chills are tested for malaria first.
-
----
-```
+- Speed: 2-5 seconds (faster)
+- Quality: Concise, practical
+- Token Limit: 6000 output tokens
 
 ### Localization
 
 All AI examples are contextualized for **Liberia, West Africa**:
-- **Health**: Malaria, cholera, Ebola, typhoid
-- **Business**: Waterside Market, Red Light Market, street vendors
-- **Criminal Justice**: Liberian courts, police
-- **Agriculture**: Cassava, rubber, rice farming
+- Health: Malaria, cholera, Ebola, typhoid
+- Business: Waterside Market, Red Light Market
+- Criminal Justice: Liberian courts, police
+- Agriculture: Cassava, rubber, rice farming
 
 ---
 
@@ -426,7 +510,7 @@ whitenoise==6.5.0
 
 # Database
 dj-database-url==2.1.0
-psycopg2-binary==2.9.9  # PostgreSQL
+psycopg2-binary==2.9.9
 
 # Environment
 python-dotenv==1.0.0
@@ -436,125 +520,52 @@ Pillow==10.0.0
 
 # HTTP Requests
 requests==2.31.0
-
-# AI Integration (built-in)
-# Gemini API - requests library
-# Groq API - requests library
-```
-
-Install all:
-```bash
-pip install -r requirements.txt
 ```
 
 ---
 
 ## 🧪 Testing
 
-### Manual Testing Checklist
+### Premium User Tests
+- [ ] Create premium user
+- [ ] Login existing user
+- [ ] Invalid code format error
+- [ ] Duplicate code error
+- [ ] Assign topics to user
+- [ ] Filter topics by user
+- [ ] Access denied for non-assigned topic
+- [ ] Community topics always visible
 
-**Department System**
-- [ ] Create course with single department
-- [ ] Create course with multiple departments
-- [ ] View courses by department
-- [ ] Display departments on course cards
-
-**OCR & Topics**
-- [ ] Upload images and extract text
-- [ ] Save topic with raw OCR text
-- [ ] View topic detail page
-- [ ] Edit refined summary manually
-
-**AI Refine**
-- [ ] Generate with Gemini only
-- [ ] Generate with Groq only
-- [ ] Generate with both simultaneously
-- [ ] Regenerate individual AI
-- [ ] Compare AI outputs side-by-side
-- [ ] Select and save AI refine
-- [ ] Verify formatting (no ###, **)
-- [ ] Check examples are localized
-- [ ] Test with table/list questions
-
-**API**
+### API Tests
 - [ ] GET /api/departments/
-- [ ] GET /api/departments/1/courses/
-- [ ] GET /api/courses/1/topics/
-- [ ] GET /api/topics/1/
-- [ ] POST /topics/1/generate-ai/
-- [ ] GET /ai-status/
-
-### Automated Tests
-```bash
-python manage.py test
-```
+- [ ] GET /api/departments/1/courses/?user_id=2
+- [ ] GET /api/courses/1/topics/?user_id=2
+- [ ] GET /api/topics/5/?user_id=2 (assigned)
+- [ ] GET /api/topics/5/?user_id=3 (not assigned = 403)
+- [ ] POST /premium/api/register-or-login/
 
 ---
 
 ## 🚢 Deployment
 
-### Option 1: Render (Recommended)
+### Render (Recommended)
 
-1. **Create Render account** at render.com
+1. **Create PostgreSQL database**
+2. **Create Web Service**
+   - Build: `pip install -r requirements.txt`
+   - Start: `gunicorn scanner.wsgi:application`
 
-2. **Create PostgreSQL database**
-   - Click "New +" → PostgreSQL
-   - Copy DATABASE_URL
-
-3. **Create Web Service**
-   - Click "New +" → Web Service
-   - Connect GitHub repo
-   - Settings:
-     ```
-     Build Command: pip install -r requirements.txt
-     Start Command: gunicorn scanner.wsgi:application
-     ```
-
-4. **Environment Variables**
+3. **Environment Variables**
    ```
    DJANGO_SECRET_KEY=<generate-random-key>
    DEBUG=False
-   DATABASE_URL=<from-step-2>
-   ALLOWED_HOSTS=your-app.onrender.com
+   DATABASE_URL=<from-postgresql>
    GEMINI_API_KEY=<your-key>
    GROQ_API_KEY=<your-key>
    CORS_ALLOWED_ORIGINS=https://your-pwa.vercel.app
-   CSRF_TRUSTED_ORIGINS=https://your-app.onrender.com
    ```
 
-5. **Deploy**
-   - Click "Create Web Service"
-   - Automatic deploys on git push
-
----
-
-### Option 2: Railway
-
-```bash
-railway login
-railway init
-railway up
-
-# Add environment variables in Railway dashboard
-```
-
----
-
-### Option 3: Heroku
-
-```bash
-heroku create cafphy-backend
-heroku addons:create heroku-postgresql:mini
-
-# Set environment variables
-heroku config:set DJANGO_SECRET_KEY=...
-heroku config:set GEMINI_API_KEY=...
-heroku config:set GROQ_API_KEY=...
-
-git push heroku main
-heroku run python manage.py migrate
-heroku run python manage.py seed_departments
-```
+4. **Deploy** - Automatic on git push
 
 ---
 
@@ -565,121 +576,55 @@ heroku run python manage.py seed_departments
 - [ ] Set `DEBUG = False`
 - [ ] Use strong `DJANGO_SECRET_KEY`
 - [ ] Enable HTTPS (SSL certificate)
-- [ ] Configure CORS properly (specific origins)
+- [ ] Configure CORS properly
 - [ ] Add CSRF_TRUSTED_ORIGINS
 - [ ] Use PostgreSQL (not SQLite)
-- [ ] Set secure cookie flags
 - [ ] Enable HSTS headers
-- [ ] Add rate limiting (future)
-- [ ] Add authentication (future)
-
-### Current Security Features
-
-✅ CSRF protection enabled
-✅ XSS protection enabled
-✅ Clickjacking protection
-✅ Secure cookies in production
-✅ CORS configured
-✅ HSTS headers (when DEBUG=False)
-
----
-
-## 🐛 Troubleshooting
-
-### "No module named 'scan'"
-**Solution:**
-```bash
-# Make sure you're in the right directory
-cd cafphy-backend
-python manage.py runserver
-```
-
-### "No such table: scan_department"
-**Solution:**
-```bash
-python manage.py makemigrations
-python manage.py migrate
-```
-
-### "GEMINI_API_KEY not found"
-**Solution:**
-```bash
-# Check .env file exists
-cat .env
-
-# Or export manually
-export GEMINI_API_KEY="your-key-here"
-export GROQ_API_KEY="your-key-here"
-```
-
-### OCR not working
-**Solution:**
-1. Check Colab notebook is running
-2. Update `COLAB_OCR_URL` in .env
-3. Test: `curl <ngrok-url>/health`
-
-### Groq 400 Error
-**Solution:** Model detection will auto-select available model. If persists:
-1. Check API key is valid
-2. Check account has usage quota
-3. Try different model in code
-
-### Rate Limiting (429 errors)
-**Solution:** Built-in retry with exponential backoff. Will automatically retry up to 8 times.
+- [ ] Add rate limiting
 
 ---
 
 ## 📖 Documentation
 
-- **[PHASE1.md](PHASE1.md)** - Detailed migration guide
+- **[PHASE1.md](docs/PHASE1.md)** - AI & Department migration
+- **[PHASE2.md](docs/PHASE2.md)** - Premium user system
 - **Django Docs** - https://docs.djangoproject.com/
 - **Gemini API** - https://ai.google.dev/docs
 - **Groq API** - https://console.groq.com/docs
 
 ---
 
-## 🎯 Roadmap
+## 🎯 Version History
 
-### Current Phase ✅
+### Phase 1 ✅ (Completed)
 - [x] Department system
 - [x] AI refine (Gemini + Groq)
 - [x] REST API
 - [x] Localized examples
-- [x] Clean formatting
 
-### Future Phases 🚧
-- [ ] User authentication
+### Phase 2 ✅ (Current)
+- [x] Premium user model
+- [x] Name + code authentication
+- [x] Topic access control
+- [x] Admin user management
+- [x] Topic assignment system
+- [x] Soft delete functionality
+
+### Phase 3 🚧 (Planned)
+- [ ] User authentication (Django users)
 - [ ] Bulk AI generation
 - [ ] PDF export
 - [ ] Usage analytics
 - [ ] Rate limiting
 - [ ] Caching layer
-- [ ] WebSocket support
-- [ ] Background tasks (Celery)
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add feature'`)
-4. Push to branch (`git push origin feature/amazing`)
-5. Open Pull Request
-
----
-
-## 📝 License
-
-Educational use only.
 
 ---
 
 ## 👨‍💻 Support
 
-- **Documentation**: PHASE1.md, README.md
+- **Documentation**: docs/PHASE1.md, docs/PHASE2.md
 - **Issues**: GitHub Issues
-- **Email**: studycompanion@gmail.com
+- **Email**: support@cafphy.com
 
 ---
 
