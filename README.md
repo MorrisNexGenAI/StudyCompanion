@@ -638,7 +638,7 @@ requests==2.31.0
    DATABASE_URL=<from-postgresql>
    GEMINI_API_KEY=<your-key>
    GROQ_API_KEY=<your-key>
-   CORS_ALLOWED_ORIGINS=https://your-pwa.vercel.app
+   CORS_ALLOWED_ORIGINS=https://your-pwa.render.com
    ```
 
 4. **Deploy** - Automatic on git push
@@ -712,7 +712,7 @@ requests==2.31.0
 
 - **Documentation**: docs/PHASE1.md, docs/PHASE2.md, docs/PHASE3.md
 - **Issues**: GitHub Issues
-- **Email**: support@cafphy.com
+- **Email**: studycompanion.@gmail.com
 
 ---
 
