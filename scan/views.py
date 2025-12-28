@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.db.models import Q
@@ -401,6 +402,82 @@ def manage_premium_topics(request):
         'total_users': active_users.count()
     })
 
+
+#For Inputing Text
+# Add these functions to your views.py (without @login_required decorators)
+
+def text_input_page(request):
+    """Page for direct text input (bypassing OCR)"""
+    courses = Course.objects.filter(is_deleted=False)
+    return render(request, 'scan/partials/text_input.html', {'courses': courses})
+
+def process_text_input(request):
+    """Process direct text input and create topic"""
+    if request.method == 'POST':
+        try:
+            # Get form data
+            topic_title = request.POST.get('topic_title', '').strip()
+            raw_text = request.POST.get('raw_text', '').strip()
+            page_range = request.POST.get('page_range', '').strip()
+            topic_type = request.POST.get('topic_type', 'community')
+            course_option = request.POST.get('course_option', 'existing')
+            
+            # Validation
+            if not topic_title or not raw_text:
+                messages.error(request, "Topic title and text content are required")
+                return redirect('text_input')
+            
+            # Handle course selection
+            if course_option == 'existing':
+                existing_course_id = request.POST.get('existing_course')
+                if not existing_course_id:
+                    messages.error(request, "Please select a course")
+                    return redirect('text_input')
+                
+                try:
+                    course = Course.objects.get(id=existing_course_id, is_deleted=False)
+                except Course.DoesNotExist:
+                    messages.error(request, "Course not found")
+                    return redirect('text_input')
+                    
+            else:  # new course
+                new_course_name = request.POST.get('new_course_name', '').strip()
+                
+                if not new_course_name:
+                    messages.error(request, "New course name is required")
+                    return redirect('text_input')
+                
+                # Create new course
+                course = Course.objects.create(name=new_course_name)
+            
+            # Add metadata to text (mimic OCR format)
+            metadata = f"[Source: Direct Text Input | Added: {timezone.now().strftime('%Y-%m-%d %H:%M')}]\n\n"
+            full_text = metadata + raw_text
+            
+            # Create the topic
+            topic = Topic.objects.create(
+                course=course,
+                title=topic_title,
+                raw_text=full_text,
+                page_range=page_range,
+                order=course.topics.filter(is_deleted=False).count(),
+                is_premium=(topic_type == 'premium')
+            )
+            
+            print(f"[TEXT INPUT] Topic #{topic.id} created successfully")
+            print(f"[TEXT INPUT] Topic.is_premium = {topic.is_premium}")
+            print(f"[TEXT INPUT] Topic title: {topic.title}")
+            
+            messages.success(request, f"Topic '{topic_title}' created successfully!")
+            return redirect('topic_detail', topic_id=topic.id)
+            
+        except Exception as e:
+            messages.error(request, f"Error creating topic: {str(e)}")
+            import traceback
+            print(f"[TEXT INPUT ERROR]: {traceback.format_exc()}")
+            return redirect('text_input')
+    
+    return redirect('text_input')
 
 # ============= UTILITIES =============
 def ocr_status(request):

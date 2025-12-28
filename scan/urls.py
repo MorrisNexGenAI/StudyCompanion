@@ -20,6 +20,8 @@ urlpatterns = [
     path('topic/<int:topic_id>/', views.topic_detail, name='topic_detail'),
     path('topic/<int:topic_id>/edit/', views.edit_refined_summary, name='edit_refined_summary'),
     path('topic/<int:topic_id>/delete/', views.delete_topic, name='delete_topic'),
+    path('text-input/', views.text_input_page, name='text_input'),
+    path('process-text/', views.process_text_input, name='process_text_input'),
 
     # Utilities
     path('ocr-status/', views.ocr_status, name='ocr_status'),
@@ -30,7 +32,7 @@ urlpatterns = [
     path('api/courses/<int:course_id>/topics/', views.api_course_topics, name='api_course_topics'),
     path('api/topics/<int:topic_id>/', views.api_topic_detail, name='api_topic_detail'),
     path('topic/<int:topic_id>/manage-assignments/', views.manage_topic_assignments, name='manage_topic_assignments'),
-     path('manage-premium-topics/', views.manage_premium_topics, name='manage_premium_topics'),
+    path('manage-premium-topics/', views.manage_premium_topics, name='manage_premium_topics'),
       # AI Refine Routes
     path('topics/<int:topic_id>/ai-refine/', ai_views.ai_refine_page, name='ai_refine_page'),
     path('topics/<int:topic_id>/generate-ai/', ai_views.generate_ai_refine, name='generate_ai_refine'),

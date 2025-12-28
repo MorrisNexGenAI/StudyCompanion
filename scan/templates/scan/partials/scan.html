@@ -53,6 +53,17 @@
           <span>Extract Text</span>
         </button>
       </div>
+      <!-- Add this button near your existing scan button -->
+<div class="text-center mt-8">
+    <p class="text-gray-600 mb-4">OR</p>
+    <a href="{% url 'text_input' %}" 
+       class="inline-block bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-3 px-8 rounded-lg transition shadow-lg text-lg">
+        📝 Paste Text Directly (Word/PDF/Web)
+    </a>
+    <p class="text-gray-500 text-sm mt-2">
+        Skip OCR - paste text from documents, websites, or any text source
+    </p>
+</div>
       
       <!-- Preview Grid -->
       <div id="preview" class="grid grid-cols-2 gap-3"></div>

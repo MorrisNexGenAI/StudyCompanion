@@ -1,5 +1,5 @@
 # ============================================================================
-# FILE 1: scan/utils/ai.py - UPDATED WITH CLEAN FORMATTING + MODEL DETECTION
+# FILE: scan/utils/ai.py - UPDATED WITH STRICT WORD COUNT ENFORCEMENT
 # ============================================================================
 
 import os
@@ -126,7 +126,7 @@ def clean_markdown_formatting(text):
 
 
 # ==================================================
-# GEMINI REFINER
+# GEMINI REFINER - WITH STRICT WORD COUNT ENFORCEMENT
 # ==================================================
 
 def refine_with_gemini(
@@ -136,7 +136,7 @@ def refine_with_gemini(
     base_delay: int = 5,
 ):
     """
-    Uses Gemini to generate COMPLETE Q&A coverage.
+    Uses Gemini to generate Q&A with STRICT word count limits.
     Returns clean, formatted text without markdown symbols.
     """
 
@@ -149,78 +149,215 @@ def refine_with_gemini(
         f"?key={api_key}"
     )
 
-    prompt = f"""You are a study guide expert helping community college students in Liberia, West Africa. Convert these messy OCR-extracted student notes into comprehensive Q&A format.
+    prompt = f"""You are creating study flashcards for community college students in Monrovia, Liberia, West Africa.
+
+Your ONLY job is to follow the EXACT format below. No creativity with formatting. No extra words.
 
 Topic: {topic_title}
 
 OCR TEXT:
 {raw_text}
 
-CRITICAL INSTRUCTIONS:
-1. Analyze ALL the content in the OCR text thoroughly
-2. Identify EVERY main concept, key term, process, definition, and important detail
-3. Create a question for EACH significant piece of information
-4. Generate AT LEAST 10-20 questions (more if the content is extensive)
-5. Cover 100% of the important material - don't skip anything
+═══════════════════════════════════════════════════════════════════
+ABSOLUTE WORD LIMITS - COUNT EVERY SINGLE WORD
+═══════════════════════════════════════════════════════════════════
+
+Answer: 4-6 words MAXIMUM (count: 1, 2, 3, 4, 5, 6 - STOP)
+Explanation: 6-8 words MAXIMUM (count: 1, 2, 3, 4, 5, 6, 7, 8 - STOP)
+Example: 5-7 words MAXIMUM (count: 1, 2, 3, 4, 5, 6, 7 - STOP)
+
+FORBIDDEN:
+❌ No "because...which...that" chains
+❌ No repeating the question in the answer
+❌ No compound sentences (no semicolons)
+❌ No abstract examples (must be concrete)
+❌ Commas only when grammatically necessary
+❌ One sentence per field (Answer, Explanation, Example)
+
+WORD COUNT ENFORCEMENT:
+✓ If Answer exceeds 6 words → concept is too broad → SPLIT into 2 questions
+✓ If Explanation exceeds 8 words → remove unnecessary words
+✓ If Example exceeds 7 words → make it more specific
+
+EXCEPTION - TABLES/LISTS:
+- If the answer IS a table or list → reproduce it fully
+- NO Explanation field (delete it)
+- NO Example field (delete it)
+- Only: Q + Answer (table/list) + separator
+
+═══════════════════════════════════════════════════════════════════
+PERFECT EXAMPLES - COPY THIS EXACT PATTERN
+═══════════════════════════════════════════════════════════════════
+
+EXAMPLE 1 - Health (West Africa Context):
+
+Q1: What causes malaria transmission?
+Answer: Infected female Anopheles mosquito bite
+
+Explanation: Parasite enters bloodstream and infects red cells
+
+Example: Monrovia rainy season increases mosquito breeding
+
+---
+
+EXAMPLE 2 - Business (Liberia Context):
+
+Q2: What is petty trading?
+Answer: Selling small goods for quick profit
+
+Explanation: Low investment generates daily income for survival
+
+Example: Waterside Market women sell rice cups
+
+---
+
+EXAMPLE 3 - Criminal Justice (Liberia Context):
+
+Q3: What is due process?
+Answer: Fair legal procedures protect accused rights
+
+Explanation: Courts must follow rules before convicting anyone
+
+Example: Monrovia Magistrate Court requires lawyer access
+
+---
+
+EXAMPLE 4 - Management (West Africa Context):
+
+Q4: What is delegation?
+Answer: Manager assigns tasks to team members
+
+Explanation: Spreads workload and develops employee skills
+
+Example: NGO supervisor assigns community health workers
+
+---
+
+EXAMPLE 5 - Agriculture (Liberia Context):
+
+Q5: What is crop rotation?
+Answer: Planting different crops each season
+
+Explanation: Prevents soil depletion and reduces pest buildup
+
+Example: Cassava then rice prevents soil exhaustion
+
+---
+
+EXAMPLE 6 - Education (West Africa Context):
+
+Q6: What is formative assessment?
+Answer: Ongoing checks during learning process
+
+Explanation: Teachers adjust instruction based on student progress
+
+Example: WASSCE mock exams identify weak areas
+
+---
+
+EXAMPLE 7 - Table Answer (NO Explanation/Example):
+
+Q7: What are the three types of rocks?
+Answer:
+| Rock Type | Formation | Example |
+|-----------|-----------|---------|
+| Igneous | Cooled magma | Granite |
+| Sedimentary | Compressed layers | Limestone |
+| Metamorphic | Heat and pressure | Marble |
+
+---
+
+═══════════════════════════════════════════════════════════════════
+LOCAL CONTEXT BANK - USE THESE IN EXAMPLES
+═══════════════════════════════════════════════════════════════════
+
+HEALTH:
+- Diseases: malaria, cholera, Ebola, typhoid, yellow fever, HIV/AIDS
+- Places: JFK Hospital, ELWA Hospital, Redemption Hospital, Phebe Hospital
+- Context: rainy season, mosquito nets, oral rehydration, community health workers
+
+BUSINESS:
+- Markets: Waterside Market, Red Light Market, Duala Market, Soul Clinic
+- Activities: petty trading, mobile money (Orange Money, MTN), street vending, market associations
+- Context: daily sales, credit systems, market queens, transport unions
+
+CRIMINAL JUSTICE:
+- Institutions: Monrovia Magistrate Court, Temple of Justice, Liberian National Police (LNP)
+- Context: bail hearings, magistrates, court clerks, police stations, customary law
+
+MANAGEMENT:
+- Organizations: local NGOs, community-based organizations (CBOs), market associations, UNMIL legacy programs
+- Context: team leaders, supervisors, community health workers, volunteers
+
+AGRICULTURE:
+- Crops: cassava, rubber, rice, palm oil, cocoa, coffee, cocoyam
+- Context: slash-and-burn, rainy season planting, rubber tappers, rice paddies, cooperative farming
+
+EDUCATION:
+- Institutions: University of Liberia, community colleges, Tubman University, WAEC
+- Context: WASSCE exams, tuition fees, scholarship programs, peer tutoring, continuing education
+
+GEOGRAPHY (Liberia):
+- Places: Montserrado County, Bong County, Nimba County, Monrovia, Bushrod Island, Congo Town, Paynesville
+- Context: coastal plains, tropical climate, rivers, Atlantic coast
+
+GEOGRAPHY (West Africa):
+- Countries: Sierra Leone, Guinea, Côte d'Ivoire, Ghana, Nigeria, Senegal
+- Context: ECOWAS, shared borders, regional trade, Harmattan winds
+
+═══════════════════════════════════════════════════════════════════
+YOUR TASK - FOLLOW THIS EXACTLY
+═══════════════════════════════════════════════════════════════════
+
+1. Read ALL the OCR text carefully
+2. Identify EVERY key concept, term, process, definition
+3. Create 15-20 questions (cover everything important)
+4. For EACH question:
+   • Write Question clearly
+   • Write Answer (4-6 words - COUNT THEM)
+   • Write Explanation (6-8 words - COUNT THEM)
+   • Write Example using LOCAL CONTEXT (5-7 words - COUNT THEM)
+   • Add separator (---)
+
+5. EXCEPTION: If answer is a table/list:
+   • Write Question
+   • Write Answer (full table/list)
+   • NO Explanation
+   • NO Example
+   • Add separator (---)
+
 6. Fix all OCR errors and typos
 7. Organize questions in logical order
 
-BREVITY REQUIREMENTS - VERY IMPORTANT:
-- Keep ALL answers brief and concise (1-2 sentences maximum)
-- Keep ALL explanations brief (1-2 sentences maximum)
-- Keep ALL examples brief and specific (1-2 sentences maximum)
-- EXCEPTION: If the answer is a table, list, or diagram, reproduce it fully and accurately
-- For tables: Use markdown table format with proper alignment
-- For lists: Present all items clearly
-- Get straight to the point - no unnecessary words
+FORMAT TO COPY:
 
-EXAMPLE REQUIREMENTS - MANDATORY:
-- EVERY question MUST have an example - no exceptions
-- Make examples relevant to Liberia, West Africa, or local African context
-- Use examples students in Liberia can relate to
-- For health topics: use diseases/conditions common in West Africa (malaria, cholera, Ebola, typhoid)
-- For business topics: use local Liberian businesses, markets (Waterside Market, Red Light Market), street vendors
-- For criminal justice: use Liberian law enforcement, courts, or local examples
-- For management: use local organizations, NGOs, or community groups
-- For agriculture: cassava, rubber, rice farming
-- Make examples practical and culturally appropriate
+Q1: [Clear question about first concept]
+Answer: [4-6 words maximum]
 
-FORMATTING RULES - IMPORTANT:
-- Use simple Q1:, Q2:, Q3: format (no ### symbols)
-- Use "Answer:", "Explanation:", "Example:" (no ** bold markers)
-- Leave blank lines between Answer, Explanation, and Example sections
-- Keep structure clean and readable
-- Separate Q&As with a line of dashes (---)
-- For tables in answers: use proper markdown table format
+Explanation: [6-8 words maximum]
 
-FORMAT TEMPLATE (repeat for ALL concepts):
-
-Q1: [First concept question]
-Answer: [Brief, concise answer in 1-2 sentences OR full table/list if applicable]
-
-Explanation: [Brief 1-2 sentence explanation of why this matters]
-
-Example: [Brief 1-2 sentence example relevant to Liberia/West Africa - MANDATORY]
+Example: [5-7 words using Liberia/West Africa context]
 
 ---
 
-Q2: [Second concept question]
-Answer: [Brief answer OR table/list if needed]
+Q2: [Clear question about second concept]
+Answer: [4-6 words maximum]
 
-Explanation: [Brief explanation]
+Explanation: [6-8 words maximum]
 
-Example: [Brief local example - MANDATORY]
+Example: [5-7 words using local context]
 
 ---
 
-[Continue with Q3, Q4, Q5... until ALL content is covered]
+[Continue Q3, Q4, Q5... until ALL content covered]
 
 CRITICAL REMINDERS:
-- Be CONCISE - every answer, explanation, and example should be brief (1-2 sentences)
-- Do NOT skip examples - every Q&A needs one
-- Do NOT stop at 1-2 questions - cover everything
-- EXCEPTION: Tables, lists, and diagrams should be complete and detailed
-- Make examples locally relevant to West African/Liberian context
+✓ COUNT EVERY WORD - do not exceed limits
+✓ EVERY question needs an example (unless table/list answer)
+✓ Use LOCAL Liberian/West African context in examples
+✓ Cover ALL important material from OCR text
+✓ If concept is too broad for word limits → SPLIT into 2 questions
+✓ Keep formatting clean (no ### or ** symbols)
 
 Begin now:"""
 
@@ -280,7 +417,7 @@ Begin now:"""
 
 
 # ==================================================
-# GROQ REFINER
+# GROQ REFINER - WITH STRICT WORD COUNT ENFORCEMENT
 # ==================================================
 
 def refine_with_groq(
@@ -290,7 +427,7 @@ def refine_with_groq(
     base_delay: int = 3,
 ):
     """
-    Uses Groq Llama to generate comprehensive Q&As.
+    Uses Groq Llama to generate Q&A with STRICT word count limits.
     Auto-detects best available model.
     Returns clean formatted text.
     """
@@ -308,65 +445,138 @@ def refine_with_groq(
     # Get best available model
     model = get_best_groq_model()
 
-    prompt = f"""You are a study guide creator helping students in Liberia, West Africa. Convert these messy OCR notes into comprehensive Q&A format.
+    prompt = f"""You are creating study flashcards for students in Liberia, West Africa.
+
+Follow the EXACT format below. No extra words. Count every word carefully.
 
 Topic: {topic_title}
 
 OCR TEXT:
 {raw_text}
 
-CRITICAL INSTRUCTIONS:
-1. Read through ALL the content carefully
-2. Identify EVERY main concept, term, process, and key detail
-3. Create a question for EACH important piece of information
-4. Generate 10-20+ questions depending on content length
-5. Cover ALL the material - don't leave anything out
-6. Fix OCR errors and organize logically
+═══════════════════════════════════════════════════════════════════
+WORD LIMITS - COUNT EACH WORD
+═══════════════════════════════════════════════════════════════════
 
-EXAMPLE REQUIREMENTS - MANDATORY:
-- EVERY question MUST include an example - no exceptions
-- Make examples relevant to Liberia, West Africa, or local African context
-- Use examples that Liberian students can relate to
-- Health topics: diseases/conditions common in West Africa (malaria, cholera, Ebola, typhoid)
-- Business topics: local markets, petty trading, Monrovia businesses, street vendors
-- Criminal justice: Liberian courts, police, local law enforcement
-- Management: local NGOs, community organizations, market associations
-- Agriculture: cassava farming, rubber plantations, local crops
-- Make examples practical and culturally appropriate
+Answer: 4-6 words MAX
+Explanation: 6-8 words MAX
+Example: 5-7 words MAX
 
-FORMATTING RULES - IMPORTANT:
-- Use simple Q1:, Q2:, Q3: format (no ### symbols)
-- Use "Answer:", "Explanation:", "Example:" (no ** bold markers)
-- Leave blank lines between Answer, Explanation, and Example sections
-- Keep it clean and readable
-- Separate Q&As with --- dashes
+RULES:
+❌ No "because/which/that" chains
+❌ No repeating question in answer
+❌ One sentence per field
+❌ Commas only when necessary
+✓ If Answer > 6 words → SPLIT into 2 questions
 
-FORMAT (repeat for EVERY concept):
+EXCEPTION: If answer is table/list → NO Explanation, NO Example
 
-Q1: [Question about first concept]
-Answer: [Concise answer]
+═══════════════════════════════════════════════════════════════════
+PERFECT EXAMPLES - COPY THIS PATTERN
+═══════════════════════════════════════════════════════════════════
 
-Explanation: [Brief explanation of why this matters]
+Q1: What causes malaria transmission?
+Answer: Infected female Anopheles mosquito bite
 
-Example: [Quick practical example relevant to Liberia - MANDATORY]
+Explanation: Parasite enters bloodstream and infects red cells
+
+Example: Monrovia rainy season increases mosquito breeding
 
 ---
 
-Q2: [Question about second concept]
-Answer: [Concise answer]
+Q2: What is petty trading?
+Answer: Selling small goods for quick profit
 
-Explanation: [Brief explanation]
+Explanation: Low investment generates daily income for survival
 
-Example: [Another local example - MANDATORY]
+Example: Waterside Market women sell rice cups
 
 ---
 
-[Continue Q3, Q4, Q5... until EVERYTHING is covered]
+Q3: What is due process?
+Answer: Fair legal procedures protect accused rights
 
-CRITICAL REMINDERS:
-- Do NOT skip examples - every single Q&A needs one
-- Do NOT stop at 1-2 questions - be thorough
-- Make examples locally relevant to West African/Liberian context
+Explanation: Courts must follow rules before convicting anyone
+
+Example: Monrovia Magistrate Court requires lawyer access
+
+---
+
+Q4: What is formative assessment?
+Answer: Ongoing checks during learning process
+
+Explanation: Teachers adjust instruction based on student progress
+
+Example: WASSCE mock exams identify weak areas
+
+---
+
+Q5: What is crop rotation?
+Answer: Planting different crops each season
+
+Explanation: Prevents soil depletion and reduces pest buildup
+
+Example: Cassava then rice prevents soil exhaustion
+
+---
+
+═══════════════════════════════════════════════════════════════════
+LOCAL CONTEXT - USE IN EXAMPLES
+═══════════════════════════════════════════════════════════════════
+
+Health: malaria, cholera, Ebola, JFK Hospital, ELWA Hospital, community health workers
+Business: Waterside Market, Red Light Market, petty trading, mobile money, market queens
+Justice: Monrovia Magistrate Court, Temple of Justice, Liberian National Police
+Management: local NGOs, CBOs, market associations, UNMIL programs
+Agriculture: cassava, rubber, rice paddies, palm oil, slash-and-burn
+Education: University of Liberia, WASSCE exams, Tubman University, peer tutoring
+Geography: Montserrado County, Monrovia, West Africa (ECOWAS, Ghana, Nigeria, Sierra Leone)
+
+═══════════════════════════════════════════════════════════════════
+YOUR TASK
+═══════════════════════════════════════════════════════════════════
+
+1. Read ALL OCR text
+2. Identify EVERY key concept
+3. Create 15-20 questions
+4. For EACH question:
+   • Question (clear)
+   • Answer (4-6 words - COUNT)
+   • Explanation (6-8 words - COUNT)
+   • Example (5-7 words - LOCAL context)
+   • Separator (---)
+
+5. EXCEPTION for tables/lists:
+   • Question + Answer (full table) + Separator
+   • NO Explanation, NO Example
+
+FORMAT:
+
+Q1: [Question]
+Answer: [4-6 words]
+
+Explanation: [6-8 words]
+
+Example: [5-7 words - Liberia/West Africa]
+
+---
+
+Q2: [Question]
+Answer: [4-6 words]
+
+Explanation: [6-8 words]
+
+Example: [5-7 words - local context]
+
+---
+
+[Continue until ALL content covered]
+
+REMINDERS:
+✓ COUNT words - never exceed limits
+✓ Use Liberian/West African examples
+✓ Cover ALL important material
+✓ Split broad concepts into multiple questions
 
 Begin:"""
 

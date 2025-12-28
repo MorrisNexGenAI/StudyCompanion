@@ -9,10 +9,11 @@ A Django-powered backend for OCR text extraction, AI-powered study note refineme
 Study Companion Backend provides:
 1. **OCR Processing** - Extracts text from images via Google Cloud Vision (Colab GPU)
 2. **AI Refinement** - Transforms messy OCR into structured Q&A using Gemini & Groq
-3. **Premium System** - Name+code authentication with topic access control
-4. **REST API** - Serves filtered data to React PWA frontend
-5. **Department System** - Organizes courses by academic departments
-6. **Admin Panel** - Manage courses, topics, departments, and premium users
+3. **Direct Text Input** - Bypass OCR, paste text from Word/PDF directly (NEW)
+4. **Premium System** - Name+code authentication with topic access control
+5. **REST API** - Serves filtered data to React PWA frontend
+6. **Department System** - Organizes courses by academic departments
+7. **Admin Panel** - Manage courses, topics, departments, and premium users
 
 ---
 
@@ -31,6 +32,7 @@ Study Companion Backend provides:
 │  │ Departments  │    Topics    │   AI Refine     │ │
 │  │   Courses    │  Raw/Refined │  Gemini/Groq    │ │
 │  │  Premium     │  Filtering   │   Access Ctrl   │ │
+│  │  Text Input  │  Q&A Format  │   Context-Aware │ │
 │  └──────────────┴──────────────┴─────────────────┘ │
 └──────────────────┬──────────────────────────────────┘
                    │
@@ -145,19 +147,20 @@ cafphy-backend/
 │   │
 │   ├── utils/
 │   │   ├── ocr.py             # OCR integration
-│   │   └── ai.py              # Gemini/Groq integration
+│   │   └── ai.py              # Gemini/Groq integration (UPDATED)
 │   │
 │   ├── templates/             # HTML templates
 │   │   └── scan/partials/
 │   │       ├── home.html
 │   │       ├── library.html
 │   │       ├── ai_refine.html
+│   │       ├── text_input.html    # NEW: Direct text input
 │   │       └── ...
 │   │
 │   └── management/commands/
 │       └── seed_departments.py
 │
-├── premium_users/             # NEW: Premium user app
+├── premium_users/             # Premium user app
 │   ├── models.py              # PremiumUser model
 │   ├── views.py               # Premium user management + API
 │   ├── urls.py                # Premium routes
@@ -176,7 +179,8 @@ cafphy-backend/
 ├── .env                       # Environment variables
 ├── docs/                      # Documentation
 │   ├── PHASE1.md              # AI & Department migration
-│   └── PHASE2.md              # Premium system
+│   ├── PHASE2.md              # Premium system
+│   └── PHASE3.md              # Study mode Q&A format (NEW)
 └── README.md                  # This file
 ```
 
@@ -213,7 +217,7 @@ Example: "BIO 202", departments=["Health Science"]
 - id (Primary Key)
 - course (ForeignKey → Course)
 - title (max 300 chars)
-- raw_text (OCR output, text)
+- raw_text (OCR output or direct input, text)
 - refined_summary (manual or AI, text)
 - page_range (e.g., "Pages 1-5")
 - order (integer for sorting)
@@ -226,7 +230,7 @@ Example: "BIO 202", departments=["Health Science"]
 Example: "Cell Structure - Pages 1-5"
 ```
 
-### PremiumUser (NEW in Phase 2)
+### PremiumUser
 ```python
 - id (Primary Key)
 - name (max 100 chars)
@@ -260,7 +264,7 @@ Unique: (topic, provider)
 
 ## 🔌 API Endpoints
 
-### Premium Authentication (NEW)
+### Premium Authentication
 
 **Register or Login**
 ```http
@@ -362,7 +366,7 @@ Success (200):
 {
   "id": 5,
   "title": "Advanced Genetics",
-  "refined_summary": "Q1: What is genetics?\n...",
+  "refined_summary": "Q1: What is genetics?\nAnswer: Study of genes and heredity\n\nExplanation: How traits pass from parents to children\n\nExample: Eye color inherited from parents\n\n---\n\nQ2: What are chromosomes?\nAnswer: DNA structures carrying genetic information\n...",
   "raw_text": "genetics is...",
   "course_name": "BIO 202",
   "departments": ["Health Science"],
@@ -474,7 +478,7 @@ def check_topic_access(topic, user_id=None):
 
 ---
 
-## 🤖 AI Integration
+## 🤖 AI Integration (Phase 1 - Enhanced)
 
 ### Gemini (Google)
 
@@ -490,6 +494,26 @@ def check_topic_access(topic, user_id=None):
 - Quality: Concise, practical
 - Token Limit: 6000 output tokens
 
+### Enhanced Prompt (Phase 1 Update)
+
+**Strict Word Count Enforcement:**
+- Answer: 4-6 words MAXIMUM
+- Explanation: 6-8 words MAXIMUM
+- Example: 5-7 words MAXIMUM
+
+**Formatting Rules:**
+- No markdown symbols (###, **)
+- Clean separation between sections
+- Proper blank lines
+- Exception for tables/lists (no Explanation/Example)
+
+**Content Quality:**
+- One sentence per field
+- No comma chains
+- No repeating questions
+- Concrete examples only
+- Context-aware for Liberia/West Africa
+
 ### Localization
 
 All AI examples are contextualized for **Liberia, West Africa**:
@@ -497,6 +521,42 @@ All AI examples are contextualized for **Liberia, West Africa**:
 - Business: Waterside Market, Red Light Market
 - Criminal Justice: Liberian courts, police
 - Agriculture: Cassava, rubber, rice farming
+- Education: University of Liberia, WASSCE exams
+
+---
+
+## 📝 Direct Text Input (Phase 1 Feature)
+
+### Text Input Page
+
+**URL:** `/text-input/`
+
+**Features:**
+- Bypass OCR completely
+- Paste text from Word, PDF, websites
+- Select existing course or create new
+- Set topic title and page range
+- Choose community or premium type
+- Instant topic creation
+
+**Use Cases:**
+- Text already extracted from PDF
+- Content from Word documents
+- Web articles/content
+- Manual typing
+- Faster than OCR processing
+
+**Process Flow:**
+```
+1. Admin visits /text-input/
+2. Selects course (existing or new)
+3. Enters topic title
+4. Pastes text content
+5. Chooses topic type (community/premium)
+6. Submits form
+7. Topic created instantly
+8. Redirected to topic detail
+```
 
 ---
 
@@ -544,6 +604,22 @@ requests==2.31.0
 - [ ] GET /api/topics/5/?user_id=3 (not assigned = 403)
 - [ ] POST /premium/api/register-or-login/
 
+### Text Input Tests
+- [ ] Create topic from pasted text
+- [ ] Select existing course
+- [ ] Create new course
+- [ ] Set community topic
+- [ ] Set premium topic
+- [ ] Validation errors
+
+### AI Refine Tests
+- [ ] Generate Gemini refine
+- [ ] Generate Groq refine
+- [ ] Word count compliance
+- [ ] Table handling
+- [ ] Formatting cleanup
+- [ ] Local context in examples
+
 ---
 
 ## 🚢 Deployment
@@ -586,8 +662,9 @@ requests==2.31.0
 
 ## 📖 Documentation
 
-- **[PHASE1.md](docs/PHASE1.md)** - AI & Department migration
+- **[PHASE1.md](docs/PHASE1.md)** - AI & Department migration, text input
 - **[PHASE2.md](docs/PHASE2.md)** - Premium user system
+- **[PHASE3.md](docs/PHASE3.md)** - Study mode Q&A format (NEW)
 - **Django Docs** - https://docs.djangoproject.com/
 - **Gemini API** - https://ai.google.dev/docs
 - **Groq API** - https://console.groq.com/docs
@@ -599,10 +676,13 @@ requests==2.31.0
 ### Phase 1 ✅ (Completed)
 - [x] Department system
 - [x] AI refine (Gemini + Groq)
+- [x] Enhanced prompts with strict word limits
+- [x] Direct text input feature
+- [x] Formatting cleanup
 - [x] REST API
 - [x] Localized examples
 
-### Phase 2 ✅ (Current)
+### Phase 2 ✅ (Completed)
 - [x] Premium user model
 - [x] Name + code authentication
 - [x] Topic access control
@@ -610,19 +690,27 @@ requests==2.31.0
 - [x] Topic assignment system
 - [x] Soft delete functionality
 
-### Phase 3 🚧 (Planned)
+### Phase 3 ✅ (Current)
+- [x] Q&A format standardization
+- [x] Table answer support
+- [x] Progressive disclosure structure
+- [x] Chunking-ready output format
+- [x] Frontend parsing compatibility
+
+### Phase 4 🚧 (Planned)
 - [ ] User authentication (Django users)
 - [ ] Bulk AI generation
-- [ ] PDF export
+- [ ] PDF export with Q&A format
 - [ ] Usage analytics
 - [ ] Rate limiting
 - [ ] Caching layer
+- [ ] Study progress API endpoints
 
 ---
 
 ## 👨‍💻 Support
 
-- **Documentation**: docs/PHASE1.md, docs/PHASE2.md
+- **Documentation**: docs/PHASE1.md, docs/PHASE2.md, docs/PHASE3.md
 - **Issues**: GitHub Issues
 - **Email**: support@cafphy.com
 

@@ -1,0 +1,115 @@
+<!-- templates/scan/text_input.html -->
+{% extends "scan/partials/base.html" %}
+
+{% block content %}
+<div class="bg-white rounded-2xl shadow-xl p-8">
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-blue-800 mb-4">📝 Direct Text Input</h2>
+        <p class="text-gray-600 mb-6">Paste text from Word, PDF, or any document directly</p>
+        
+        <form method="POST" action="{% url 'process_text_input' %}">
+            {% csrf_token %}
+            
+            <!-- Course Selection -->
+            <div>
+                <label class="block font-semibold mb-2">Course</label>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2">
+                        <input type="radio" name="course_option" value="existing" checked onchange="toggleCourseFields()">
+                        <span>Use existing course</span>
+                    </label>
+                    <select name="existing_course" id="existingCourse" class="w-full p-3 border-2 rounded-lg">
+                        <option value="">-- Select Course --</option>
+                        {% for course in courses %}
+                        <option value="{{ course.id }}">{{ course.name }}</option>
+                        {% endfor %}
+                    </select>
+                    
+                    <label class="flex items-center gap-2 mt-3">
+                        <input type="radio" name="course_option" value="new" onchange="toggleCourseFields()">
+                        <span>Create new course</span>
+                    </label>
+                    <div id="newCourseFields" class="hidden space-y-2 pl-6">
+                        <input type="text" name="new_course_name" placeholder="Course Name (e.g., BIO 202)" class="w-full p-3 border-2 rounded-lg">
+                        <!-- Removed subject field since Course model doesn't have it -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Topic Title -->
+            <div class="mt-4">
+                <label class="block font-semibold mb-2">Topic Title *</label>
+                <input type="text" name="topic_title" required 
+                       placeholder="e.g., Cell Division" 
+                       class="w-full p-3 border-2 rounded-lg">
+            </div>
+            
+            <!-- Page Range (optional) -->
+            <div class="mt-4">
+                <label class="block font-semibold mb-2">Page Range (optional)</label>
+                <input type="text" name="page_range" 
+                       placeholder="e.g., Pages 5-8 or Chapter 3" 
+                       class="w-full p-3 border-2 rounded-lg">
+            </div>
+            
+            <!-- Text Area -->
+            <div class="mt-6">
+                <label class="block font-semibold mb-2">Text Content *</label>
+                <textarea name="raw_text" required 
+                          rows="15" 
+                          placeholder="Paste your text here from Word, PDF, website, or any source..."
+                          class="w-full p-3 border-2 rounded-lg font-mono text-sm"></textarea>
+            </div>
+            
+            <!-- Topic Type -->
+            <div class="bg-purple-50 border-2 border-purple-300 rounded-xl p-4 my-6">
+                <label class="block font-semibold text-purple-800 mb-3">🔒 Topic Access Type</label>
+                <div class="space-y-3">
+                    <label class="flex items-start gap-3 p-3 bg-white rounded-lg cursor-pointer border-2 hover:border-blue-400 transition">
+                        <input type="radio" name="topic_type" value="community" checked class="mt-1">
+                        <div>
+                            <p class="font-semibold text-gray-800">🌍 Community Topic</p>
+                            <p class="text-sm text-gray-600">Visible to all users immediately</p>
+                        </div>
+                    </label>
+                    
+                    <label class="flex items-start gap-3 p-3 bg-white rounded-lg cursor-pointer border-2 hover:border-purple-400 transition">
+                        <input type="radio" name="topic_type" value="premium" class="mt-1">
+                        <div>
+                            <p class="font-semibold text-gray-800">🔒 Premium Topic</p>
+                            <p class="text-sm text-gray-600">Hidden until you manually assign to specific users</p>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="mt-4 bg-yellow-50 border border-yellow-300 rounded-lg p-3">
+                    <p class="text-sm text-yellow-800">
+                        ℹ️ Premium topics must be manually assigned to users via "Send Premium Topics" page.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Submit -->
+            <div class="flex gap-3">
+                <button type="submit" 
+                        class="flex-1 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white font-bold py-4 px-6 rounded-lg transition shadow-lg">
+                    📝 Create Topic from Text
+                </button>
+                <a href="{% url 'scan_new' %}" 
+                   class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-4 px-6 rounded-lg text-center transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Toggle course fields (same as in your existing template)
+function toggleCourseFields() {
+    const option = document.querySelector('input[name="course_option"]:checked').value;
+    document.getElementById('existingCourse').disabled = option === 'new';
+    document.getElementById('newCourseFields').classList.toggle('hidden', option === 'existing');
+}
+</script>
+{% endblock %}
