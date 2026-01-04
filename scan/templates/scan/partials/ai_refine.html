@@ -11,9 +11,22 @@
         <a href="{% url 'topic_detail' topic.id %}" class="text-gray-600 hover:text-gray-800">← Back</a>
     </div>
 
-    <!-- How It Works Banner -->
+    <!-- How It Works Banner + Difficulty Indicator -->
     <div class="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-xl p-6 mb-6">
-        <h3 class="font-bold text-purple-800 mb-3">🤖 How AI Refine Works:</h3>
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-purple-800">🤖 How AI Refine Works:</h3>
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-600">Difficulty Level:</span>
+                <span class="px-3 py-1 rounded-lg font-bold
+                    {% if difficulty == 'easy' %}bg-green-200 text-green-800
+                    {% elif difficulty == 'medium' %}bg-yellow-200 text-yellow-800
+                    {% else %}bg-red-200 text-red-800{% endif %}">
+                    {% if difficulty == 'easy' %}⚡ Easy
+                    {% elif difficulty == 'medium' %}📚 Medium
+                    {% else %}🎓 Difficult{% endif %}
+                </span>
+            </div>
+        </div>
         <div class="grid md:grid-cols-3 gap-4 text-sm">
             <div class="bg-white rounded-lg p-3">
                 <p class="font-bold text-purple-700 mb-1">1️⃣ Raw OCR Text</p>
@@ -21,13 +34,65 @@
             </div>
             <div class="bg-white rounded-lg p-3">
                 <p class="font-bold text-blue-700 mb-1">2️⃣ AI Processing</p>
-                <p class="text-gray-600">Gemini & Groq create structured Q&As</p>
+                <p class="text-gray-600">Generates {{ difficulty }}-level Q&As tailored for {{ difficulty }} understanding</p>
             </div>
             <div class="bg-white rounded-lg p-3">
                 <p class="font-bold text-green-700 mb-1">3️⃣ You Choose</p>
                 <p class="text-gray-600">Pick the best one to save</p>
             </div>
         </div>
+        
+        <!-- Difficulty Explanation -->
+        <div class="mt-4 bg-white rounded-lg p-3 text-sm">
+            <p class="font-bold text-gray-800 mb-1">What does "{{ difficulty }}" mean?</p>
+            {% if difficulty == 'easy' %}
+            <p class="text-gray-600">⚡ <strong>Easy:</strong> Quick recognition, basic facts, simple examples. Perfect for fast review and building habits.</p>
+            {% elif difficulty == 'medium' %}
+            <p class="text-gray-600">📚 <strong>Medium:</strong> Shows mechanisms and WHY/HOW things work. Specific local context. Good for understanding concepts.</p>
+            {% else %}
+            <p class="text-gray-600">🎓 <strong>Difficult:</strong> Complete cause-and-effect with real-world scenarios. Deep context for exam mastery and application.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- NEW: Difficulty Level Selection -->
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-6 mb-6">
+        <h5 class="font-bold text-blue-800 mb-3">⚙️ Select Difficulty Level:</h5>
+        <div class="grid grid-cols-3 gap-3 mb-3">
+            <label class="cursor-pointer">
+                <input type="radio" name="difficulty" id="difficultyEasy" value="easy" 
+                       {% if difficulty == 'easy' %}checked{% endif %}
+                       class="peer hidden">
+                <div class="border-2 border-gray-300 peer-checked:border-green-500 peer-checked:bg-green-100 rounded-lg p-4 text-center transition hover:bg-gray-50">
+                    <div class="text-2xl mb-1">⚡</div>
+                    <div class="font-bold text-gray-800">Easy</div>
+                    <div class="text-xs text-gray-600">Quick Recognition</div>
+                </div>
+            </label>
+
+            <label class="cursor-pointer">
+                <input type="radio" name="difficulty" id="difficultyMedium" value="medium" 
+                       {% if difficulty == 'medium' %}checked{% endif %}
+                       class="peer hidden">
+                <div class="border-2 border-gray-300 peer-checked:border-yellow-500 peer-checked:bg-yellow-100 rounded-lg p-4 text-center transition hover:bg-gray-50">
+                    <div class="text-2xl mb-1">📚</div>
+                    <div class="font-bold text-gray-800">Medium</div>
+                    <div class="text-xs text-gray-600">Understanding</div>
+                </div>
+            </label>
+
+            <label class="cursor-pointer">
+                <input type="radio" name="difficulty" id="difficultyDifficult" value="difficult" 
+                       {% if difficulty == 'difficult' %}checked{% endif %}
+                       class="peer hidden">
+                <div class="border-2 border-gray-300 peer-checked:border-red-500 peer-checked:bg-red-100 rounded-lg p-4 text-center transition hover:bg-gray-50">
+                    <div class="text-2xl mb-1">🎓</div>
+                    <div class="font-bold text-gray-800">Difficult</div>
+                    <div class="text-xs text-gray-600">Mastery</div>
+                </div>
+            </label>
+        </div>
+        <p class="text-sm text-gray-600 text-center">💡 Choose based on how deep you want AI explanations and examples</p>
     </div>
 
     <!-- SELECTIVE GENERATION BUTTONS -->
@@ -204,6 +269,9 @@
 
 <script>
 async function generateAIRefines(provider) {
+    // Get selected difficulty
+    const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+    
     const btnBoth = document.getElementById('btnBoth');
     const btnGemini = document.getElementById('btnGemini');
     const btnGroq = document.getElementById('btnGroq');
@@ -222,11 +290,11 @@ async function generateAIRefines(provider) {
     // Show loading with specific message
     loading.classList.remove('hidden');
     if (provider === 'both') {
-        loadingText.textContent = 'Generating with both Gemini and Groq...';
+        loadingText.textContent = `Generating ${difficulty} level with both Gemini and Groq...`;
     } else if (provider === 'gemini') {
-        loadingText.textContent = 'Generating with Gemini only...';
+        loadingText.textContent = `Generating ${difficulty} level with Gemini only...`;
     } else if (provider === 'groq') {
-        loadingText.textContent = 'Generating with Groq only...';
+        loadingText.textContent = `Generating ${difficulty} level with Groq only...`;
     }
     
     try {
@@ -235,7 +303,10 @@ async function generateAIRefines(provider) {
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: new URLSearchParams({provider: provider})
+            body: new URLSearchParams({
+                provider: provider,
+                difficulty: difficulty
+            })
         });
         
         const results = await response.json();

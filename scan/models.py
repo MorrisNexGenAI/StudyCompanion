@@ -94,6 +94,18 @@ class Topic(BaseModel):
     )
     is_deleted = models.BooleanField(default=False)  # SOFT DELETE
     
+    # NEW FIELD - Difficulty Level
+    difficulty_level = models.CharField(
+        max_length=20,
+        choices=[
+            ('easy', 'Easy - Quick Recognition'),
+            ('medium', 'Medium - Understanding'),
+            ('difficult', 'Difficult - Mastery'),
+        ],
+        default='medium',
+        help_text="Determines explanation depth and context richness for AI generation"
+    )
+    
     premium_users = models.ManyToManyField(
         'premium_users.PremiumUser',
         blank=True,
@@ -107,11 +119,17 @@ class Topic(BaseModel):
         indexes = [
             models.Index(fields=['is_premium']),
             models.Index(fields=['is_deleted']),
+            models.Index(fields=['difficulty_level']),  # NEW INDEX
         ]
     
     def __str__(self):
         premium_badge = "🔒 " if self.is_premium else ""
-        return f"{premium_badge}{self.course.name} - {self.title}"
+        difficulty_badge = {
+            'easy': '⚡',
+            'medium': '📚',
+            'difficult': '🎓'
+        }.get(self.difficulty_level, '')
+        return f"{premium_badge}{difficulty_badge} {self.course.name} - {self.title}"
     
     def is_accessible_by(self, user):
         """Check if a user can access this topic."""
@@ -176,12 +194,25 @@ class AIRefine(BaseModel):
     processing_time = models.FloatField(null=True, blank=True)
     qa_count = models.IntegerField(default=0)
     
+    # NEW FIELD - Difficulty Level
+    difficulty_level = models.CharField(
+        max_length=20,
+        choices=[
+            ('easy', 'Easy'),
+            ('medium', 'Medium'),
+            ('difficult', 'Difficult'),
+        ],
+        default='medium',
+        help_text="Difficulty level used when generating this refinement"
+    )
+    
     class Meta:
         ordering = ['-created_at']
-        unique_together = ['topic', 'provider']
+        # Updated unique_together to include difficulty
+        unique_together = ['topic', 'provider', 'difficulty_level']
     
     def __str__(self):
-        return f"{self.topic.title} - {self.get_provider_display()} ({self.status})"
+        return f"{self.topic.title} - {self.get_provider_display()} ({self.difficulty_level}) [{self.status}]"
     
     def is_successful(self):
         return self.status == 'completed' and bool(self.refined_text)

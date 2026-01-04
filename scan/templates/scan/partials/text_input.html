@@ -31,7 +31,6 @@
                     </label>
                     <div id="newCourseFields" class="hidden space-y-2 pl-6">
                         <input type="text" name="new_course_name" placeholder="Course Name (e.g., BIO 202)" class="w-full p-3 border-2 rounded-lg">
-                        <!-- Removed subject field since Course model doesn't have it -->
                     </div>
                 </div>
             </div>
@@ -88,6 +87,9 @@
                     </p>
                 </div>
             </div>
+
+            <!-- REMOVED: Difficulty Level Selection -->
+            <!-- This will now be selected on the AI Refine Comparison page instead -->
             
             <!-- Submit -->
             <div class="flex gap-3">
@@ -105,7 +107,6 @@
 </div>
 
 <script>
-// Toggle course fields (same as in your existing template)
 function toggleCourseFields() {
     const option = document.querySelector('input[name="course_option"]:checked').value;
     document.getElementById('existingCourse').disabled = option === 'new';

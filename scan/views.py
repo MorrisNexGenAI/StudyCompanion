@@ -98,10 +98,8 @@ def save_topic(request):
         topic_title = request.POST.get('topic_title')
         page_range = request.POST.get('page_range', '')
         topic_type = request.POST.get('topic_type', 'community')
+        difficulty_level = request.POST.get('difficulty_level', 'medium')  # NEW
         is_premium = (topic_type == 'premium')
-
-        print(f"[SAVE TOPIC] topic_type received: '{topic_type}'")
-        print(f"[SAVE TOPIC] is_premium set to: {is_premium}")
 
         if course_option == 'new':
             course_name = request.POST.get('new_course_name')
@@ -127,20 +125,17 @@ def save_topic(request):
             raw_text=raw_text,
             page_range=page_range,
             order=course.topics.filter(is_deleted=False).count(),
-            is_premium=is_premium
+            is_premium=is_premium,
+            difficulty_level=difficulty_level  # NEW
         )
-        
-        print(f"[SAVE TOPIC] Topic #{topic.id} created successfully")
-        print(f"[SAVE TOPIC] Topic.is_premium = {topic.is_premium}")
-        print(f"[SAVE TOPIC] Topic title: {topic.title}")
 
         request.session.pop('extracted_text', None)
         request.session.pop('temp_image_count', None)
 
         if is_premium:
-            messages.success(request, f"Premium topic '{topic_title}' saved! Assign users in 'Send Premium Topics' page.")
+            messages.success(request, f"Premium topic '{topic_title}' ({difficulty_level}) saved!")
         else:
-            messages.success(request, f"Community topic '{topic_title}' saved!")
+            messages.success(request, f"Community topic '{topic_title}' ({difficulty_level}) saved!")
         
         return render(request, 'scan/partials/save_success.html', {
             'topic': topic,
@@ -415,69 +410,50 @@ def process_text_input(request):
     """Process direct text input and create topic"""
     if request.method == 'POST':
         try:
-            # Get form data
             topic_title = request.POST.get('topic_title', '').strip()
             raw_text = request.POST.get('raw_text', '').strip()
             page_range = request.POST.get('page_range', '').strip()
             topic_type = request.POST.get('topic_type', 'community')
+            difficulty_level = request.POST.get('difficulty_level', 'medium')  # NEW
             course_option = request.POST.get('course_option', 'existing')
             
-            # Validation
             if not topic_title or not raw_text:
                 messages.error(request, "Topic title and text content are required")
                 return redirect('text_input')
             
-            # Handle course selection
             if course_option == 'existing':
                 existing_course_id = request.POST.get('existing_course')
                 if not existing_course_id:
                     messages.error(request, "Please select a course")
                     return redirect('text_input')
-                
-                try:
-                    course = Course.objects.get(id=existing_course_id, is_deleted=False)
-                except Course.DoesNotExist:
-                    messages.error(request, "Course not found")
-                    return redirect('text_input')
-                    
-            else:  # new course
+                course = Course.objects.get(id=existing_course_id, is_deleted=False)
+            else:
                 new_course_name = request.POST.get('new_course_name', '').strip()
-                
                 if not new_course_name:
                     messages.error(request, "New course name is required")
                     return redirect('text_input')
-                
-                # Create new course
                 course = Course.objects.create(name=new_course_name)
             
-            # Add metadata to text (mimic OCR format)
             metadata = f"[Source: Direct Text Input | Added: {timezone.now().strftime('%Y-%m-%d %H:%M')}]\n\n"
             full_text = metadata + raw_text
             
-            # Create the topic
             topic = Topic.objects.create(
                 course=course,
                 title=topic_title,
                 raw_text=full_text,
                 page_range=page_range,
                 order=course.topics.filter(is_deleted=False).count(),
-                is_premium=(topic_type == 'premium')
+                is_premium=(topic_type == 'premium'),
+                difficulty_level=difficulty_level  # NEW
             )
-            
-            print(f"[TEXT INPUT] Topic #{topic.id} created successfully")
-            print(f"[TEXT INPUT] Topic.is_premium = {topic.is_premium}")
-            print(f"[TEXT INPUT] Topic title: {topic.title}")
-            
-            messages.success(request, f"Topic '{topic_title}' created successfully!")
+            messages.success(request, f"Topic '{topic_title}' ({difficulty_level}) created successfully!")
             return redirect('topic_detail', topic_id=topic.id)
-            
         except Exception as e:
             messages.error(request, f"Error creating topic: {str(e)}")
-            import traceback
-            print(f"[TEXT INPUT ERROR]: {traceback.format_exc()}")
             return redirect('text_input')
-    
+    # For non-POST requests, redirect back to the text input page
     return redirect('text_input')
+            
 
 # ============= UTILITIES =============
 def ocr_status(request):

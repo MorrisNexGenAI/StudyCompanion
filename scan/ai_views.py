@@ -1,4 +1,3 @@
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -13,19 +12,30 @@ from .utils.ai import (
 
 
 def ai_refine_page(request, topic_id):
-    """
-    Show AI Refine comparison page with all three versions
-    """
+    """Show AI Refine comparison page"""
     topic = get_object_or_404(Topic, id=topic_id)
     
-    # Get existing AI refines
-    gemini_refine = AIRefine.objects.filter(topic=topic, provider='gemini').first()
-    groq_refine = AIRefine.objects.filter(topic=topic, provider='groq').first()
+    # Get difficulty from query parameter or use topic's stored difficulty
+    difficulty = request.GET.get('difficulty', topic.difficulty_level or 'medium')
+    
+    # Get AI refines for the SELECTED difficulty (not just topic's stored one)
+    gemini_refine = AIRefine.objects.filter(
+        topic=topic, 
+        provider='gemini',
+        difficulty_level=difficulty
+    ).order_by('-created_at').first()  # Get latest for this difficulty
+    
+    groq_refine = AIRefine.objects.filter(
+        topic=topic, 
+        provider='groq',
+        difficulty_level=difficulty
+    ).order_by('-created_at').first()  # Get latest for this difficulty
     
     context = {
         'topic': topic,
         'gemini_refine': gemini_refine,
         'groq_refine': groq_refine,
+        'difficulty': difficulty,  # Pass the selected difficulty to template
     }
     
     return render(request, 'scan/partials/ai_refine.html', context)
@@ -33,37 +43,41 @@ def ai_refine_page(request, topic_id):
 
 @csrf_exempt
 def generate_ai_refine(request, topic_id):
-    """
-    Generate AI refines - SELECTIVE: gemini, groq, or both
-    """
+    """Generate AI refines with user-selected difficulty level"""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
     
     topic = get_object_or_404(Topic, id=topic_id)
-    provider = request.POST.get('provider', 'both')  # 'gemini', 'groq', or 'both'
+    provider = request.POST.get('provider', 'both')
+    
+    # GET DIFFICULTY FROM POST REQUEST (sent from JavaScript)
+    difficulty = request.POST.get('difficulty', 'medium')
+    
+    # OPTIONAL: Update topic's stored difficulty level
+    # Uncomment these lines if you want to save the user's choice:
+    topic.difficulty_level = difficulty
+    topic.save(update_fields=['difficulty_level', 'updated_at'])
     
     results = {}
     
     # Generate Gemini refine
     if provider in ['gemini', 'both']:
         try:
+            # Get or create with the SELECTED difficulty
             gemini_refine, _ = AIRefine.objects.get_or_create(
                 topic=topic,
                 provider='gemini',
+                difficulty_level=difficulty,  # Use selected difficulty
                 defaults={'status': 'processing'}
             )
-            
-            # Check if already exists and ask for confirmation
-            if gemini_refine.status == 'completed' and gemini_refine.refined_text:
-                # Regenerate anyway (user clicked button)
-                pass
             
             gemini_refine.status = 'processing'
             gemini_refine.save()
             
             refined_text, proc_time, qa_count = refine_with_gemini(
                 topic.raw_text, 
-                topic.title
+                topic.title,
+                difficulty_level=difficulty  # Pass selected difficulty to AI
             )
             
             gemini_refine.refined_text = refined_text
@@ -77,21 +91,25 @@ def generate_ai_refine(request, topic_id):
                 'success': True,
                 'qa_count': qa_count,
                 'processing_time': round(proc_time, 2),
+                'difficulty': difficulty,
                 'preview': refined_text[:300] + '...' if len(refined_text) > 300 else refined_text
             }
             
         except AIRefineError as e:
-            gemini_refine.status = 'failed'
-            gemini_refine.error_message = str(e)
-            gemini_refine.save()
+            if 'gemini_refine' in locals():
+                gemini_refine.status = 'failed'
+                gemini_refine.error_message = str(e)
+                gemini_refine.save()
             results['gemini'] = {'success': False, 'error': str(e)}
     
     # Generate Groq refine
     if provider in ['groq', 'both']:
         try:
+            # Get or create with the SELECTED difficulty
             groq_refine, _ = AIRefine.objects.get_or_create(
                 topic=topic,
                 provider='groq',
+                difficulty_level=difficulty,  # Use selected difficulty
                 defaults={'status': 'processing'}
             )
             
@@ -100,7 +118,8 @@ def generate_ai_refine(request, topic_id):
             
             refined_text, proc_time, qa_count = refine_with_groq(
                 topic.raw_text,
-                topic.title
+                topic.title,
+                difficulty_level=difficulty  # Pass selected difficulty to AI
             )
             
             groq_refine.refined_text = refined_text
@@ -114,13 +133,15 @@ def generate_ai_refine(request, topic_id):
                 'success': True,
                 'qa_count': qa_count,
                 'processing_time': round(proc_time, 2),
+                'difficulty': difficulty,
                 'preview': refined_text[:300] + '...' if len(refined_text) > 300 else refined_text
             }
             
         except AIRefineError as e:
-            groq_refine.status = 'failed'
-            groq_refine.error_message = str(e)
-            groq_refine.save()
+            if 'groq_refine' in locals():
+                groq_refine.status = 'failed'
+                groq_refine.error_message = str(e)
+                groq_refine.save()
             results['groq'] = {'success': False, 'error': str(e)}
     
     return JsonResponse(results)
@@ -128,26 +149,50 @@ def generate_ai_refine(request, topic_id):
 
 @csrf_exempt
 def select_ai_refine(request, topic_id):
-    """
-    User selects which AI refine to use (or keeps manual)
-    """
+    """User selects which AI refine to use"""
     if request.method != 'POST':
         return redirect('ai_refine_page', topic_id=topic_id)
     
     topic = get_object_or_404(Topic, id=topic_id)
     selection = request.POST.get('selection')
     
+    # Get the difficulty from the AI refine being selected
+    # This ensures we save the refine that was actually generated
+    difficulty = None
+    
     if selection == 'gemini':
-        gemini_refine = get_object_or_404(AIRefine, topic=topic, provider='gemini')
-        topic.refined_summary = gemini_refine.refined_text
-        topic.save()
-        message = '✓ Gemini refine saved to topic!'
+        gemini_refine = AIRefine.objects.filter(
+            topic=topic, 
+            provider='gemini',
+            status='completed'
+        ).order_by('-created_at').first()
+        
+        if gemini_refine:
+            topic.refined_summary = gemini_refine.refined_text
+            difficulty = gemini_refine.difficulty_level
+            # Update topic's difficulty to match the selected refine
+            topic.difficulty_level = difficulty
+            topic.save()
+            message = f'✓ Gemini refine ({difficulty} level) saved to topic!'
+        else:
+            return JsonResponse({'error': 'No Gemini refine found'}, status=400)
         
     elif selection == 'groq':
-        groq_refine = get_object_or_404(AIRefine, topic=topic, provider='groq')
-        topic.refined_summary = groq_refine.refined_text
-        topic.save()
-        message = '✓ Groq refine saved to topic!'
+        groq_refine = AIRefine.objects.filter(
+            topic=topic, 
+            provider='groq',
+            status='completed'
+        ).order_by('-created_at').first()
+        
+        if groq_refine:
+            topic.refined_summary = groq_refine.refined_text
+            difficulty = groq_refine.difficulty_level
+            # Update topic's difficulty to match the selected refine
+            topic.difficulty_level = difficulty
+            topic.save()
+            message = f'✓ Groq refine ({difficulty} level) saved to topic!'
+        else:
+            return JsonResponse({'error': 'No Groq refine found'}, status=400)
         
     elif selection == 'manual':
         message = '✓ Keeping manual refined summary'

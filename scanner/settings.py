@@ -20,11 +20,11 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.environ.get(
-    "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,http://10.248.248.46:8000",
-).split(",")
-#ALLOWED_HOSTS = ["*"]
+#ALLOWED_HOSTS = os.environ.get(
+    #"ALLOWED_HOSTS",
+    #"localhost,127.0.0.1,http://10.248.248.46:8000",
+#).split(",")
+ALLOWED_HOSTS = ["*"]
 
 # =========================
 # Installed Apps
