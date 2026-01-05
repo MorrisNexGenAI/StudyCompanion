@@ -1,6 +1,6 @@
 # Study Companion Backend - Django API & Premium Management
 
-A Django-powered backend for OCR text extraction, AI-powered study note refinement, premium user management, and RESTful API for mobile/web clients.
+A Django-powered backend for OCR text extraction, AI-powered study note refinement with dynamic difficulty levels, premium user management, and RESTful API for mobile/web clients.
 
 ---
 
@@ -9,11 +9,12 @@ A Django-powered backend for OCR text extraction, AI-powered study note refineme
 Study Companion Backend provides:
 1. **OCR Processing** - Extracts text from images via Google Cloud Vision (Colab GPU)
 2. **AI Refinement** - Transforms messy OCR into structured Q&A using Gemini & Groq
-3. **Direct Text Input** - Bypass OCR, paste text from Word/PDF directly (NEW)
-4. **Premium System** - Name+code authentication with topic access control
-5. **REST API** - Serves filtered data to React PWA frontend
-6. **Department System** - Organizes courses by academic departments
-7. **Admin Panel** - Manage courses, topics, departments, and premium users
+3. **Dynamic Difficulty** - Easy, Medium, Difficult levels for personalized learning (NEW)
+4. **Direct Text Input** - Bypass OCR, paste text from Word/PDF directly
+5. **Premium System** - Name+code authentication with topic access control
+6. **REST API** - Serves filtered data to React PWA frontend
+7. **Department System** - Organizes courses by academic departments
+8. **Admin Panel** - Manage courses, topics, departments, and premium users
 
 ---
 
@@ -32,7 +33,7 @@ Study Companion Backend provides:
 │  │ Departments  │    Topics    │   AI Refine     │ │
 │  │   Courses    │  Raw/Refined │  Gemini/Groq    │ │
 │  │  Premium     │  Filtering   │   Access Ctrl   │ │
-│  │  Text Input  │  Q&A Format  │   Context-Aware │ │
+│  │  Text Input  │  Q&A Format  │   Difficulty    │ │
 │  └──────────────┴──────────────┴─────────────────┘ │
 └──────────────────┬──────────────────────────────────┘
                    │
@@ -138,23 +139,23 @@ cafphy-backend/
 │   ├── models.py              # Database models
 │   │   ├── Department         # Academic departments
 │   │   ├── Course             # Courses (many-to-many with departments)
-│   │   ├── Topic              # Study topics with OCR text
-│   │   └── AIRefine           # AI-generated refinements
+│   │   ├── Topic              # Study topics with difficulty_level (NEW)
+│   │   └── AIRefine           # AI-generated refinements with difficulty
 │   │
 │   ├── views.py               # Web views + API endpoints
-│   ├── ai_views.py            # AI refine endpoints
+│   ├── ai_views.py            # AI refine endpoints (UPDATED)
 │   ├── urls.py                # App URL routing
 │   │
 │   ├── utils/
 │   │   ├── ocr.py             # OCR integration
-│   │   └── ai.py              # Gemini/Groq integration (UPDATED)
+│   │   └── ai.py              # Gemini/Groq with difficulty prompts (UPDATED)
 │   │
 │   ├── templates/             # HTML templates
 │   │   └── scan/partials/
 │   │       ├── home.html
 │   │       ├── library.html
-│   │       ├── ai_refine.html
-│   │       ├── text_input.html    # NEW: Direct text input
+│   │       ├── ai_refine.html         # Difficulty selector (UPDATED)
+│   │       ├── text_input.html        # No difficulty field (UPDATED)
 │   │       └── ...
 │   │
 │   └── management/commands/
@@ -165,9 +166,6 @@ cafphy-backend/
 │   ├── views.py               # Premium user management + API
 │   ├── urls.py                # Premium routes
 │   └── templates/             # Premium user templates
-│       └── premium_users/
-│           ├── manage_users.html
-│           └── send_topics.html
 │
 ├── core/                      # Base app
 │   └── models.py              # BaseModel (timestamps)
@@ -180,7 +178,8 @@ cafphy-backend/
 ├── docs/                      # Documentation
 │   ├── PHASE1.md              # AI & Department migration
 │   ├── PHASE2.md              # Premium system
-│   └── PHASE3.md              # Study mode Q&A format (NEW)
+│   ├── PHASE3.md              # Study mode Q&A format
+│   └── PHASE4.md              # Dynamic difficulty system (NEW)
 └── README.md                  # This file
 ```
 
@@ -223,11 +222,12 @@ Example: "BIO 202", departments=["Health Science"]
 - order (integer for sorting)
 - is_premium (boolean)
 - is_deleted (soft delete flag)
+- difficulty_level ('easy'/'medium'/'difficult', default='medium') ← NEW
 - premium_users (ManyToMany → PremiumUser)
 - created_at (auto)
 - updated_at (auto)
 
-Example: "Cell Structure - Pages 1-5"
+Example: "Cell Structure - Pages 1-5" (Medium difficulty)
 ```
 
 ### PremiumUser
@@ -254,11 +254,54 @@ Example: name="Emmanuel Cooper", code="EC21"
 - error_message (text)
 - processing_time (float, seconds)
 - qa_count (integer)
+- difficulty_level ('easy'/'medium'/'difficult') ← NEW
 - created_at (auto)
 - updated_at (auto)
 
-Unique: (topic, provider)
+Unique: (topic, provider, difficulty_level) ← UPDATED
 ```
+
+---
+
+## 🎯 Difficulty System (Phase 4)
+
+### Three Learning Levels
+
+**⚡ Easy - Quick Recognition**
+- **Purpose**: Fast review, habit building
+- **Content**: Basic facts, simple language
+- **Best for**: Daily reviews, memorization, cramming
+- **Example**: "Answer: Infected mosquito bite"
+
+**📚 Medium - Understanding**
+- **Purpose**: Conceptual understanding
+- **Content**: WHY/HOW explanations, local context
+- **Best for**: Regular study, learning new material
+- **Example**: "Answer: Infected female Anopheles mosquito bite"
+
+**🎓 Difficult - Mastery**
+- **Purpose**: Deep learning, exam excellence
+- **Content**: Cause-and-effect, technical terms, scenarios
+- **Best for**: Exam prep, thesis work, teaching
+- **Example**: "Answer: Plasmodium parasite via infected Anopheles bite"
+
+### User Workflow
+
+```
+1. Create topic (no difficulty selection)
+2. Navigate to AI Refine page
+3. Select difficulty: Easy | Medium | Difficult
+4. Generate with Gemini/Groq
+5. AI creates content at selected level
+6. Can regenerate at different difficulty anytime
+```
+
+### Frontend Display
+
+Topics show difficulty badge:
+- ⚡ Easy
+- 📚 Medium  
+- 🎓 Difficult
 
 ---
 
@@ -284,78 +327,13 @@ Success Response (201):
   "code": "EC21",
   "is_new": true
 }
-
-Error Response (400/403):
-{
-  "error": "This code is already linked to another user"
-}
 ```
 
 ---
 
 ### Public API (Filtered by User)
 
-#### Departments
-
-**List all departments**
-```http
-GET /api/departments/
-```
-Response:
-```json
-[
-  {"id": 1, "name": "Health Science"},
-  {"id": 2, "name": "Criminal Justice"}
-]
-```
-
-**Get courses in department**
-```http
-GET /api/departments/<dept_id>/courses/?user_id=2
-```
-Response:
-```json
-[
-  {
-    "id": 1,
-    "name": "BIO 202",
-    "year": "2024",
-    "departments": [{"id": 1, "name": "Health Science"}],
-    "topic_count": 5,
-    "refined_count": 3
-  }
-]
-```
-
----
-
 #### Topics (Access Controlled)
-
-**Get topics in course**
-```http
-GET /api/courses/<course_id>/topics/?user_id=2
-```
-Response:
-```json
-[
-  {
-    "id": 1,
-    "title": "Cell Structure",
-    "page_range": "Pages 1-5",
-    "is_premium": false,
-    "is_refined": true,
-    "updated_at": 1703001234
-  },
-  {
-    "id": 5,
-    "title": "Advanced Genetics",
-    "page_range": "Pages 10-15",
-    "is_premium": true,
-    "is_refined": true,
-    "updated_at": 1703002000
-  }
-]
-```
 
 **Get full topic**
 ```http
@@ -366,7 +344,8 @@ Success (200):
 {
   "id": 5,
   "title": "Advanced Genetics",
-  "refined_summary": "Q1: What is genetics?\nAnswer: Study of genes and heredity\n\nExplanation: How traits pass from parents to children\n\nExample: Eye color inherited from parents\n\n---\n\nQ2: What are chromosomes?\nAnswer: DNA structures carrying genetic information\n...",
+  "difficulty_level": "medium",
+  "refined_summary": "Q1: What is genetics?\nAnswer: Study of genes and heredity\n\nExplanation: How traits pass from parents to children\n\nExample: Eye color inherited from parents\n\n---",
   "raw_text": "genetics is...",
   "course_name": "BIO 202",
   "departments": ["Health Science"],
@@ -375,157 +354,74 @@ Success (200):
 }
 ```
 
-Access Denied (403):
-```json
-{
-  "error": "Access denied. This is a premium topic.",
-  "is_premium": true,
-  "requires_login": true
-}
-```
-
 ---
 
 #### AI Refine
 
-**Generate AI refine**
+**Generate AI refine with difficulty**
 ```http
 POST /topics/<topic_id>/generate-ai/
 Content-Type: application/x-www-form-urlencoded
 
 provider=gemini  # or 'groq' or 'both'
+difficulty=medium  # or 'easy' or 'difficult' (NEW)
 ```
 
-**Select AI refine**
-```http
-POST /topics/<topic_id>/select-ai/
-Content-Type: application/x-www-form-urlencoded
-
-selection=gemini  # or 'groq' or 'manual'
-```
-
-**Check AI status**
-```http
-GET /ai-status/
-```
-
----
-
-## 🔐 Premium User Management
-
-### Admin Interface
-
-**Manage Premium Users**
-- URL: `/premium/manage/`
-- Create, edit, activate/deactivate users
-- Search by name or code
-- Filter by active/inactive
-
-**Send Premium Topics**
-- URL: `/premium/send-topics/`
-- Assign premium topics to specific users
-- Bulk select users
-- See who has access to what
-
-**Manage Premium Topics**
-- URL: `/manage-premium-topics/`
-- View all premium topics
-- Edit assignments
-- Soft delete topics
-
----
-
-### Access Control Logic
-
-**Topic Filtering:**
-```python
-def filter_topics_for_user(topics_queryset, user_id=None):
-    if not user_id:
-        # No user_id = only community topics
-        return topics_queryset.filter(is_premium=False, is_deleted=False)
-    
-    try:
-        user = PremiumUser.objects.get(id=user_id, is_active=True)
-        
-        # Return:
-        # 1. All community topics, OR
-        # 2. Premium topics where user is explicitly assigned
-        return topics_queryset.filter(
-            Q(is_premium=False) | Q(is_premium=True, premium_users=user),
-            is_deleted=False
-        ).distinct()
-    except PremiumUser.DoesNotExist:
-        return topics_queryset.filter(is_premium=False, is_deleted=False)
-```
-
-**Topic Access Check:**
-```python
-def check_topic_access(topic, user_id=None):
-    # Community topics = always accessible
-    if not topic.is_premium:
-        return True
-    
-    # Premium topics require explicit assignment
-    if not user_id:
-        return False
-    
-    try:
-        user = PremiumUser.objects.get(id=user_id, is_active=True)
-        return topic.is_accessible_by(user)
-    except PremiumUser.DoesNotExist:
-        return False
+Response:
+```json
+{
+  "gemini": {
+    "success": true,
+    "qa_count": 5,
+    "processing_time": 7.2,
+    "difficulty": "medium",
+    "preview": "Q1: What is..."
+  }
+}
 ```
 
 ---
 
-## 🤖 AI Integration (Phase 1 - Enhanced)
+## 🤖 AI Integration
 
-### Gemini (Google)
+### Difficulty-Specific Prompts
 
-**Model:** `gemini-2.5-flash`
+**Easy Level**:
+```
+- Answer: Simple, direct facts (4-6 words)
+- Explanation: Basic "what" - no mechanisms (6-8 words)
+- Example: Straightforward scenario (5-7 words)
+```
+
+**Medium Level**:
+```
+- Answer: Key concept (4-6 words)
+- Explanation: WHY/HOW it works (6-8 words)
+- Example: Specific local context (5-7 words)
+```
+
+**Difficult Level**:
+```
+- Answer: Precise definition with technical terms (4-6 words)
+- Explanation: Cause-and-effect mechanisms (6-8 words)
+- Example: Real-world Liberian scenario (5-7 words)
+```
+
+### AI Providers
+
+**Gemini (Google)**
+- Model: `gemini-2.5-flash`
 - Speed: 5-10 seconds
 - Quality: Detailed, comprehensive
-- Token Limit: 8000 output tokens
 
-### Groq (Llama 3)
-
-**Model:** Auto-detected (llama-3.3 > 3.1 > 3.0)
+**Groq (Llama 3)**
+- Model: Auto-detected (llama-3.3 > 3.1 > 3.0)
 - Speed: 2-5 seconds (faster)
 - Quality: Concise, practical
-- Token Limit: 6000 output tokens
-
-### Enhanced Prompt (Phase 1 Update)
-
-**Strict Word Count Enforcement:**
-- Answer: 4-6 words MAXIMUM
-- Explanation: 6-8 words MAXIMUM
-- Example: 5-7 words MAXIMUM
-
-**Formatting Rules:**
-- No markdown symbols (###, **)
-- Clean separation between sections
-- Proper blank lines
-- Exception for tables/lists (no Explanation/Example)
-
-**Content Quality:**
-- One sentence per field
-- No comma chains
-- No repeating questions
-- Concrete examples only
-- Context-aware for Liberia/West Africa
-
-### Localization
-
-All AI examples are contextualized for **Liberia, West Africa**:
-- Health: Malaria, cholera, Ebola, typhoid
-- Business: Waterside Market, Red Light Market
-- Criminal Justice: Liberian courts, police
-- Agriculture: Cassava, rubber, rice farming
-- Education: University of Liberia, WASSCE exams
 
 ---
 
-## 📝 Direct Text Input (Phase 1 Feature)
+## 📝 Direct Text Input
 
 ### Text Input Page
 
@@ -537,126 +433,32 @@ All AI examples are contextualized for **Liberia, West Africa**:
 - Select existing course or create new
 - Set topic title and page range
 - Choose community or premium type
-- Instant topic creation
-
-**Use Cases:**
-- Text already extracted from PDF
-- Content from Word documents
-- Web articles/content
-- Manual typing
-- Faster than OCR processing
-
-**Process Flow:**
-```
-1. Admin visits /text-input/
-2. Selects course (existing or new)
-3. Enters topic title
-4. Pastes text content
-5. Chooses topic type (community/premium)
-6. Submits form
-7. Topic created instantly
-8. Redirected to topic detail
-```
-
----
-
-## 📦 Dependencies
-
-```txt
-# Core
-Django==5.1
-django-cors-headers==4.3.1
-whitenoise==6.5.0
-
-# Database
-dj-database-url==2.1.0
-psycopg2-binary==2.9.9
-
-# Environment
-python-dotenv==1.0.0
-
-# Image Processing
-Pillow==10.0.0
-
-# HTTP Requests
-requests==2.31.0
-```
+- **No difficulty selection** (set when generating AI)
 
 ---
 
 ## 🧪 Testing
 
+### Difficulty System Tests
+- [ ] Generate Easy difficulty
+- [ ] Generate Medium difficulty
+- [ ] Generate Difficult difficulty
+- [ ] Regenerate same topic at different difficulty
+- [ ] Compare Easy vs Medium vs Difficult outputs
+- [ ] Verify difficulty saved to database
+- [ ] Check AI prompt uses correct difficulty
+
 ### Premium User Tests
 - [ ] Create premium user
 - [ ] Login existing user
-- [ ] Invalid code format error
-- [ ] Duplicate code error
 - [ ] Assign topics to user
 - [ ] Filter topics by user
-- [ ] Access denied for non-assigned topic
-- [ ] Community topics always visible
+- [ ] Access control for premium topics
 
 ### API Tests
-- [ ] GET /api/departments/
-- [ ] GET /api/departments/1/courses/?user_id=2
-- [ ] GET /api/courses/1/topics/?user_id=2
-- [ ] GET /api/topics/5/?user_id=2 (assigned)
-- [ ] GET /api/topics/5/?user_id=3 (not assigned = 403)
-- [ ] POST /premium/api/register-or-login/
-
-### Text Input Tests
-- [ ] Create topic from pasted text
-- [ ] Select existing course
-- [ ] Create new course
-- [ ] Set community topic
-- [ ] Set premium topic
-- [ ] Validation errors
-
-### AI Refine Tests
-- [ ] Generate Gemini refine
-- [ ] Generate Groq refine
-- [ ] Word count compliance
-- [ ] Table handling
-- [ ] Formatting cleanup
-- [ ] Local context in examples
-
----
-
-## 🚢 Deployment
-
-### Render (Recommended)
-
-1. **Create PostgreSQL database**
-2. **Create Web Service**
-   - Build: `pip install -r requirements.txt`
-   - Start: `gunicorn scanner.wsgi:application`
-
-3. **Environment Variables**
-   ```
-   DJANGO_SECRET_KEY=<generate-random-key>
-   DEBUG=False
-   DATABASE_URL=<from-postgresql>
-   GEMINI_API_KEY=<your-key>
-   GROQ_API_KEY=<your-key>
-   CORS_ALLOWED_ORIGINS=https://your-pwa.render.com
-   ```
-
-4. **Deploy** - Automatic on git push
-
----
-
-## 🔒 Security
-
-### Production Checklist
-
-- [ ] Set `DEBUG = False`
-- [ ] Use strong `DJANGO_SECRET_KEY`
-- [ ] Enable HTTPS (SSL certificate)
-- [ ] Configure CORS properly
-- [ ] Add CSRF_TRUSTED_ORIGINS
-- [ ] Use PostgreSQL (not SQLite)
-- [ ] Enable HSTS headers
-- [ ] Add rate limiting
+- [ ] GET /api/topics/5/?user_id=2 (check difficulty_level in response)
+- [ ] POST /topics/5/generate-ai/ with difficulty=easy
+- [ ] POST /topics/5/generate-ai/ with difficulty=difficult
 
 ---
 
@@ -664,10 +466,8 @@ requests==2.31.0
 
 - **[PHASE1.md](docs/PHASE1.md)** - AI & Department migration, text input
 - **[PHASE2.md](docs/PHASE2.md)** - Premium user system
-- **[PHASE3.md](docs/PHASE3.md)** - Study mode Q&A format (NEW)
-- **Django Docs** - https://docs.djangoproject.com/
-- **Gemini API** - https://ai.google.dev/docs
-- **Groq API** - https://console.groq.com/docs
+- **[PHASE3.md](docs/PHASE3.md)** - Study mode Q&A format
+- **[PHASE4.md](docs/PHASE4.md)** - Dynamic difficulty system (NEW)
 
 ---
 
@@ -690,29 +490,39 @@ requests==2.31.0
 - [x] Topic assignment system
 - [x] Soft delete functionality
 
-### Phase 3 ✅ (Current)
+### Phase 3 ✅ (Completed)
 - [x] Q&A format standardization
 - [x] Table answer support
 - [x] Progressive disclosure structure
 - [x] Chunking-ready output format
 - [x] Frontend parsing compatibility
 
-### Phase 4 🚧 (Planned)
+### Phase 4 ✅ (Current - NEW)
+- [x] Dynamic difficulty system (Easy/Medium/Difficult)
+- [x] User-controlled difficulty selection
+- [x] Difficulty-specific AI prompts
+- [x] Topic.difficulty_level field
+- [x] AIRefine.difficulty_level field
+- [x] Regeneration at different difficulties
+- [x] Real-time UI difficulty indicator
+- [x] Removed difficulty from topic creation
+
+### Phase 5 🚧 (Planned)
 - [ ] User authentication (Django users)
+- [ ] Study progress tracking
 - [ ] Bulk AI generation
 - [ ] PDF export with Q&A format
 - [ ] Usage analytics
 - [ ] Rate limiting
 - [ ] Caching layer
-- [ ] Study progress API endpoints
 
 ---
 
 ## 👨‍💻 Support
 
-- **Documentation**: docs/PHASE1.md, docs/PHASE2.md, docs/PHASE3.md
+- **Documentation**: docs/PHASE1.md through docs/PHASE4.md
 - **Issues**: GitHub Issues
-- **Email**: studycompanion.@gmail.com
+- **Email**: studycompanion@gmail.com
 
 ---
 
