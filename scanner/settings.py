@@ -21,8 +21,8 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = os.environ.get(
-   "ALLOWED_HOSTS",
-   "localhost,127.0.0.1,http://10.248.248.46:8000",
+  "ALLOWED_HOSTS",
+  "localhost,127.0.0.1,http://10.248.248.46:8000",
 ).split(",")
 #ALLOWED_HOSTS = ["*"] 
 
@@ -91,10 +91,11 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 # =========================
 # CSRF Configuration
 # =========================
-CSRF_TRUSTED_ORIGINS = [
+CSRF_TRUSTED_ORIGINS = [ 
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8000",
+    "http://10.248.248.46:8000",
     "http://0.0.0.0:8000",
     "https://studycompanions.netlify.app",
 ]

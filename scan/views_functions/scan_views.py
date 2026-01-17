@@ -78,7 +78,6 @@ def upload_and_extract(request):
     
     return JsonResponse({'error': 'No images uploaded'}, status=400)
 
-
 @csrf_exempt
 def save_topic(request):
     """Save extracted text as a new topic."""
@@ -89,11 +88,15 @@ def save_topic(request):
             return redirect('scan_new')
 
         course_option = request.POST.get('course_option')
-        topic_title = request.POST.get('topic_title')
+        topic_title = request.POST.get('topic_title', '').strip()
         page_range = request.POST.get('page_range', '')
         topic_type = request.POST.get('topic_type', 'community')
         difficulty_level = request.POST.get('difficulty_level', 'medium')
         is_premium = (topic_type == 'premium')
+
+        if not topic_title:
+            messages.error(request, "Topic title is required.")
+            return redirect('scan_new')
 
         if course_option == 'new':
             course_name = request.POST.get('new_course_name')
@@ -122,6 +125,9 @@ def save_topic(request):
             is_premium=is_premium,
             difficulty_level=difficulty_level
         )
+        
+        # ✅ FIX: Refresh from database to get the ID
+        topic.refresh_from_db()
 
         request.session.pop('extracted_text', None)
         request.session.pop('temp_image_count', None)
@@ -131,11 +137,6 @@ def save_topic(request):
         else:
             messages.success(request, f"Community topic '{topic_title}' ({difficulty_level}) saved!")
         
-        return render(request, 'scan/partials/save_success.html', {
-            'topic': topic,
-            'course': course,
-            'is_premium': is_premium
-        })
+        return redirect('topic_detail', topic_id=topic.id)
 
     return redirect('scan_new')
-
