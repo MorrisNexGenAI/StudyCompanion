@@ -116,6 +116,7 @@ def save_topic(request):
                 return redirect('scan_new')
             course = get_object_or_404(Course, id=course_id, is_deleted=False)
 
+        # Create topic
         topic = Topic.objects.create(
             course=course,
             title=topic_title,
@@ -125,18 +126,46 @@ def save_topic(request):
             is_premium=is_premium,
             difficulty_level=difficulty_level
         )
+
+        # HEAVY DEBUG
+        import sys
+        print("=" * 80, file=sys.stderr)
+        print(f"TOPIC CREATED", file=sys.stderr)
+        print(f"topic object type: {type(topic)}", file=sys.stderr)
+        print(f"topic.__dict__: {topic.__dict__}", file=sys.stderr)
+        print(f"topic.id = {repr(topic.id)}", file=sys.stderr)
+        print(f"topic.pk = {repr(topic.pk)}", file=sys.stderr)
+        print(f"hasattr id: {hasattr(topic, 'id')}", file=sys.stderr)
         
-        # ✅ FIX: Refresh from database to get the ID
-        topic.refresh_from_db()
+        # Try to get from DB
+        try:
+            saved_topic = Topic.objects.latest('created_at')
+            print(f"Latest topic from DB: id={saved_topic.id}, title={saved_topic.title}", file=sys.stderr)
+        except Exception as e:
+            print(f"Error fetching latest: {e}", file=sys.stderr)
+        
+        print("=" * 80, file=sys.stderr)
 
         request.session.pop('extracted_text', None)
         request.session.pop('temp_image_count', None)
+
+        # Try using the latest topic from DB instead
+        latest_topic = Topic.objects.filter(course=course).latest('created_at')
+        
+        print(f"Using latest_topic.id = {latest_topic.id}", file=sys.stderr)
 
         if is_premium:
             messages.success(request, f"Premium topic '{topic_title}' ({difficulty_level}) saved!")
         else:
             messages.success(request, f"Community topic '{topic_title}' ({difficulty_level}) saved!")
         
-        return redirect('topic_detail', topic_id=topic.id)
+        # Use HttpResponseRedirect with explicit URL building
+        from django.urls import reverse
+        from django.http import HttpResponseRedirect
+        
+        url = reverse('topic_detail', kwargs={'topic_id': latest_topic.id})
+        print(f"Redirect URL: {url}", file=sys.stderr)
+        
+        return HttpResponseRedirect(url)
 
     return redirect('scan_new')
