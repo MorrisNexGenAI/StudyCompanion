@@ -2,395 +2,112 @@
 
 {% block content %}
 <div class="bg-white rounded-2xl shadow-xl p-8">
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <p class="text-sm text-gray-600 mb-1">{{ topic.course.name }}</p>
-            <h1 class="text-2xl font-bold text-indigo-600">AI Refine Comparison</h1>
-            <p class="text-gray-600">{{ topic.title }}</p>
-        </div>
-        <a href="{% url 'topic_detail' topic.id %}" class="text-gray-600 hover:text-gray-800">← Back</a>
-    </div>
-
-    <!-- How It Works Banner + Difficulty Indicator (Dynamic) -->
-    <div class="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-xl p-6 mb-6">
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="font-bold text-purple-800">🤖 How AI Refine Works:</h3>
-            <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-600">Selected Difficulty:</span>
-                <span id="difficultyIndicator" class="px-3 py-1 rounded-lg font-bold bg-yellow-200 text-yellow-800">
-                    📚 Medium
-                </span>
-            </div>
-        </div>
-        <div class="grid md:grid-cols-3 gap-4 text-sm">
-            <div class="bg-white rounded-lg p-3">
-                <p class="font-bold text-purple-700 mb-1">1️⃣ Raw OCR Text</p>
-                <p class="text-gray-600">Your messy extracted text from images</p>
-            </div>
-            <div class="bg-white rounded-lg p-3">
-                <p class="font-bold text-blue-700 mb-1">2️⃣ AI Processing</p>
-                <p class="text-gray-600" id="difficultyDescription">Generates medium-level Q&As tailored for understanding</p>
-            </div>
-            <div class="bg-white rounded-lg p-3">
-                <p class="font-bold text-green-700 mb-1">3️⃣ You Choose</p>
-                <p class="text-gray-600">Pick the best one to save</p>
-            </div>
+    <div class="bg-green-50 border-2 border-green-300 rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-green-800 mb-4">✓ Text Extracted!</h2>
+        
+        <!-- Stats -->
+        <div class="bg-white rounded-lg p-4 mb-4">
+            <p class="text-gray-700"><strong>Pages:</strong> {{ page_count }}</p>
+            <p class="text-gray-700"><strong>Characters:</strong> {{ extracted_text|length }}</p>
         </div>
         
-        <!-- Difficulty Explanation (Dynamic) -->
-        <div class="mt-4 bg-white rounded-lg p-3 text-sm">
-            <p class="font-bold text-gray-800 mb-1">What does "<span id="difficultyName">Medium</span>" mean?</p>
-            <p class="text-gray-600" id="difficultyExplanation">
-                📚 <strong>Medium:</strong> Shows mechanisms and WHY/HOW things work. Specific local context. Good for understanding concepts.
-            </p>
-        </div>
-    </div>
-
-    <!-- Difficulty Level Selection -->
-    <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-6 mb-6">
-        <h5 class="font-bold text-blue-800 mb-3">⚙️ Select Difficulty Level:</h5>
-        <div class="grid grid-cols-3 gap-3 mb-3">
-            <label class="cursor-pointer">
-                <input type="radio" name="difficulty" id="difficultyEasy" value="easy" 
-                       {% if difficulty == 'easy' %}checked{% endif %}
-                       onchange="updateDifficultyDisplay('easy')"
-                       class="peer hidden">
-                <div class="border-2 border-gray-300 peer-checked:border-green-500 peer-checked:bg-green-100 rounded-lg p-4 text-center transition hover:bg-gray-50">
-                    <div class="text-2xl mb-1">⚡</div>
-                    <div class="font-bold text-gray-800">Easy</div>
-                    <div class="text-xs text-gray-600">Quick Recognition</div>
-                </div>
-            </label>
-
-            <label class="cursor-pointer">
-                <input type="radio" name="difficulty" id="difficultyMedium" value="medium" 
-                       {% if difficulty == 'medium' or not difficulty %}checked{% endif %}
-                       onchange="updateDifficultyDisplay('medium')"
-                       class="peer hidden">
-                <div class="border-2 border-gray-300 peer-checked:border-yellow-500 peer-checked:bg-yellow-100 rounded-lg p-4 text-center transition hover:bg-gray-50">
-                    <div class="text-2xl mb-1">📚</div>
-                    <div class="font-bold text-gray-800">Medium</div>
-                    <div class="text-xs text-gray-600">Understanding</div>
-                </div>
-            </label>
-
-            <label class="cursor-pointer">
-                <input type="radio" name="difficulty" id="difficultyDifficult" value="difficult" 
-                       {% if difficulty == 'difficult' %}checked{% endif %}
-                       onchange="updateDifficultyDisplay('difficult')"
-                       class="peer hidden">
-                <div class="border-2 border-gray-300 peer-checked:border-red-500 peer-checked:bg-red-100 rounded-lg p-4 text-center transition hover:bg-gray-50">
-                    <div class="text-2xl mb-1">🎓</div>
-                    <div class="font-bold text-gray-800">Difficult</div>
-                    <div class="text-xs text-gray-600">Mastery</div>
-                </div>
-            </label>
-        </div>
-        <p class="text-sm text-gray-600 text-center">💡 Choose based on how deep you want AI explanations and examples</p>
-    </div>
-
-    <!-- SELECTIVE GENERATION BUTTONS -->
-    <div class="mb-6">
-        <h3 class="font-bold text-gray-800 mb-3">Choose which AI to generate:</h3>
-        <div class="grid md:grid-cols-3 gap-3">
-            <!-- Generate Both -->
-            <button onclick="generateAIRefines('both')" id="btnBoth" 
-                    class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition">
-                ✨ Both (Gemini + Groq)
-            </button>
-            
-            <!-- Generate Gemini Only -->
-            <button onclick="generateAIRefines('gemini')" id="btnGemini" 
-                    class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition">
-                🤖 Gemini Only
-            </button>
-            
-            <!-- Generate Groq Only -->
-            <button onclick="generateAIRefines('groq')" id="btnGroq" 
-                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition">
-                ⚡ Groq Only
-            </button>
-        </div>
-        <p class="text-sm text-gray-500 text-center mt-2">
-            💡 Tip: Try one at a time to save API quota, or generate both to compare
-        </p>
-    </div>
-
-    <!-- Loading State -->
-    <div id="loadingState" class="hidden bg-blue-50 border-2 border-blue-300 rounded-xl p-6 text-center mb-6">
-        <div class="animate-pulse">
-            <p class="text-blue-800 font-bold text-lg mb-2">🔄 Processing with AI...</p>
-            <p class="text-blue-600" id="loadingText">Generating AI refines...</p>
-        </div>
-    </div>
-
-    <!-- Comparison Grid -->
-    <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Preview Text -->
+        <details class="bg-white rounded-lg p-4 mb-6">
+            <summary class="font-bold text-blue-600 cursor-pointer">📄 View Extracted Text</summary>
+            <pre class="mt-3 p-3 bg-gray-50 rounded text-xs whitespace-pre-wrap max-h-64 overflow-y-auto">{{ extracted_text }}</pre>
+        </details>
         
-        <!-- RAW TEXT -->
-        <div class="bg-gray-50 border-2 border-gray-300 rounded-xl p-6">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="font-bold text-gray-800">📄 Raw OCR Text</h3>
-                <span class="text-xs bg-gray-200 px-2 py-1 rounded">Original</span>
-            </div>
-            <div class="bg-white border border-gray-200 rounded-lg p-4 h-96 overflow-y-auto">
-                <pre class="whitespace-pre-wrap text-xs text-gray-700 font-mono">{{ topic.raw_text|truncatewords:200 }}</pre>
-            </div>
-            <p class="text-xs text-gray-500 mt-2">Messy, unorganized extraction</p>
-        </div>
-
-        <!-- MANUAL REFINE -->
-        <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="font-bold text-yellow-800">✏️ Manual Refine</h3>
-                {% if topic.refined_summary %}
-                <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">✓ Saved</span>
-                {% else %}
-                <span class="text-xs bg-gray-200 px-2 py-1 rounded">Empty</span>
-                {% endif %}
-            </div>
-            <div class="bg-white border border-yellow-200 rounded-lg p-4 h-96 overflow-y-auto">
-                {% if topic.refined_summary %}
-                <pre class="whitespace-pre-wrap text-sm text-gray-800">{{ topic.refined_summary|truncatewords:150 }}</pre>
-                {% else %}
-                <p class="text-gray-400 italic text-sm">No manual refine yet. You can add one later.</p>
-                {% endif %}
-            </div>
-            <a href="{% url 'edit_refined_summary' topic.id %}" 
-               class="block mt-3 text-center bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg text-sm">
-                Edit Manual
-            </a>
-        </div>
-
-        <!-- AI REFINES -->
-        <div class="bg-purple-50 border-2 border-purple-300 rounded-xl p-6">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="font-bold text-purple-800">🤖 AI Refines</h3>
-                <span class="text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded">Auto</span>
-            </div>
-
-            <!-- Gemini -->
-            <div id="geminiSection" class="mb-4">
-                <div class="bg-white border border-purple-200 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <p class="font-bold text-sm text-purple-700">Gemini 2.5 Flash</p>
-                        <span id="geminiStatus" class="text-xs bg-gray-200 px-2 py-1 rounded">
-                            {% if gemini_refine and gemini_refine.is_successful %}✓ Completed{% else %}Not Generated{% endif %}
-                        </span>
-                    </div>
-                    <div id="geminiPreview" class="text-xs text-gray-500 italic">
-                        {% if gemini_refine and gemini_refine.is_successful %}
-                        <p class="text-green-700 font-bold mb-1">✓ {{ gemini_refine.qa_count }} Q&As • {{ gemini_refine.processing_time|floatformat:1 }}s</p>
-                        <pre class="whitespace-pre-wrap text-gray-700 max-h-32 overflow-y-auto">{{ gemini_refine.refined_text|truncatewords:50 }}</pre>
-                        {% elif gemini_refine and gemini_refine.status == 'failed' %}
-                        <p class="text-red-600">❌ Failed: {{ gemini_refine.error_message|truncatewords:20 }}</p>
-                        {% else %}
-                        Click "Gemini Only" or "Both" to generate
-                        {% endif %}
-                    </div>
-                    {% if gemini_refine and gemini_refine.is_successful %}
-                    <button onclick="generateAIRefines('gemini')" 
-                            class="mt-2 w-full bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold py-1 px-3 rounded">
-                        🔄 Regenerate
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Groq -->
-            <div id="groqSection">
-                <div class="bg-white border border-purple-200 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <p class="font-bold text-sm text-blue-700">Groq Llama</p>
-                        <span id="groqStatus" class="text-xs bg-gray-200 px-2 py-1 rounded">
-                            {% if groq_refine and groq_refine.is_successful %}✓ Completed{% else %}Not Generated{% endif %}
-                        </span>
-                    </div>
-                    <div id="groqPreview" class="text-xs text-gray-500 italic">
-                        {% if groq_refine and groq_refine.is_successful %}
-                        <p class="text-green-700 font-bold mb-1">✓ {{ groq_refine.qa_count }} Q&As • {{ groq_refine.processing_time|floatformat:1 }}s</p>
-                        <pre class="whitespace-pre-wrap text-gray-700 max-h-32 overflow-y-auto">{{ groq_refine.refined_text|truncatewords:50 }}</pre>
-                        {% elif groq_refine and groq_refine.status == 'failed' %}
-                        <p class="text-red-600">❌ Failed: {{ groq_refine.error_message|truncatewords:20 }}</p>
-                        {% else %}
-                        Click "Groq Only" or "Both" to generate
-                        {% endif %}
-                    </div>
-                    {% if groq_refine and groq_refine.is_successful %}
-                    <button onclick="generateAIRefines('groq')" 
-                            class="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-3 rounded">
-                        🔄 Regenerate
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Selection Form -->
-    <div id="selectionForm" class="{% if not gemini_refine.is_successful and not groq_refine.is_successful %}hidden{% endif %} mt-8">
-        <div class="bg-green-50 border-2 border-green-300 rounded-xl p-6">
-            <h3 class="font-bold text-green-800 mb-4 text-lg">✅ Choose Which Version to Save:</h3>
-            <form method="POST" action="{% url 'select_ai_refine' topic.id %}">
-                {% csrf_token %}
-                <div class="grid md:grid-cols-3 gap-4">
-                    {% if gemini_refine.is_successful %}
-                    <button type="submit" name="selection" value="gemini"
-                            class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition">
-                        Use Gemini<br>
-                        <span class="text-sm font-normal">({{ gemini_refine.qa_count }} Q&As)</span>
-                    </button>
-                    {% endif %}
+        <!-- Save Form -->
+        <form method="POST" action="{% url 'save_topic' %}" class="space-y-4">
+            {% csrf_token %}
+            
+            <h3 class="text-xl font-bold text-indigo-600 mb-4">📚 Save as Topic</h3>
+            
+            <!-- Course Selection -->
+            <div>
+                <label class="block font-semibold mb-2">Course</label>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2">
+                        <input type="radio" name="course_option" value="existing" checked onchange="toggleCourseFields()">
+                        <span>Use existing course</span>
+                    </label>
+                    <select name="existing_course" id="existingCourse" class="w-full p-3 border-2 rounded-lg">
+                        <option value="">-- Select Course --</option>
+                        {% for course in courses %}
+                        <option value="{{ course.id }}">{{ course.name }}</option>
+                        {% endfor %}
+                    </select>
                     
-                    {% if groq_refine.is_successful %}
-                    <button type="submit" name="selection" value="groq"
-                            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition">
-                        Use Groq<br>
-                        <span class="text-sm font-normal">({{ groq_refine.qa_count }} Q&As)</span>
-                    </button>
-                    {% endif %}
-                    
-                    <button type="submit" name="selection" value="manual"
-                            class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 px-6 rounded-lg transition">
-                        Keep Manual<br>
-                        <span class="text-sm font-normal">(Your version)</span>
-                    </button>
+                    <label class="flex items-center gap-2 mt-3">
+                        <input type="radio" name="course_option" value="new" onchange="toggleCourseFields()">
+                        <span>Create new course</span>
+                    </label>
+                    <div id="newCourseFields" class="hidden space-y-2 pl-6">
+                        <input type="text" name="new_course_name" placeholder="Course Name (e.g., BIO 202)" class="w-full p-3 border-2 rounded-lg">
+                        <input type="text" name="new_course_subject" placeholder="Subject (optional)" class="w-full p-3 border-2 rounded-lg">
+                    </div>
                 </div>
-            </form>
-        </div>
+            </div>
+            
+            <!-- Topic Title -->
+            <div>
+                <label class="block font-semibold mb-2">Topic Title *</label>
+                <input type="text" name="topic_title" required placeholder="e.g., Cell Division" class="w-full p-3 border-2 rounded-lg">
+            </div>
+            
+            <!-- Page Range -->
+            <div>
+                <label class="block font-semibold mb-2">Page Range (optional)</label>
+                <input type="text" name="page_range" placeholder="e.g., Pages 5-8, Chapter 3" class="w-full p-3 border-2 rounded-lg">
+            </div>
+            
+            <!-- Topic Type Selection - SIMPLE RADIO BUTTONS ONLY -->
+            <div class="bg-purple-50 border-2 border-purple-300 rounded-xl p-4">
+                <label class="block font-semibold text-purple-800 mb-3">🔒 Topic Access Type</label>
+                <div class="space-y-3">
+                    <label class="flex items-start gap-3 p-3 bg-white rounded-lg cursor-pointer border-2 hover:border-blue-400 transition">
+                        <input type="radio" name="topic_type" value="community" checked class="mt-1">
+                        <div>
+                            <p class="font-semibold text-gray-800">🌍 Community Topic</p>
+                            <p class="text-sm text-gray-600">Visible to all users immediately</p>
+                        </div>
+                    </label>
+                    
+                    <label class="flex items-start gap-3 p-3 bg-white rounded-lg cursor-pointer border-2 hover:border-purple-400 transition">
+                        <input type="radio" name="topic_type" value="premium" class="mt-1">
+                        <div>
+                            <p class="font-semibold text-gray-800">🔒 Premium Topic</p>
+                            <p class="text-sm text-gray-600">Hidden until you manually assign to specific users</p>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="mt-4 bg-yellow-50 border border-yellow-300 rounded-lg p-3">
+                    <p class="text-sm text-yellow-800">
+                        ℹ️ Premium topics must be manually assigned to users via "Send Premium Topics" page.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Submit -->
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition">
+                    💾 Save Topic
+                </button>
+                <a href="{% url 'scan_new' %}" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-4 px-6 rounded-lg text-center transition">
+                    Cancel
+                </a>
+            </div>
+        </form>
     </div>
 </div>
 
 <script>
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const selectedDifficulty = document.querySelector('input[name="difficulty"]:checked')?.value || 'medium';
-    updateDifficultyDisplay(selectedDifficulty);
-});
-
-// Update difficulty display in real-time
-function updateDifficultyDisplay(level) {
-    const indicator = document.getElementById('difficultyIndicator');
-    const description = document.getElementById('difficultyDescription');
-    const name = document.getElementById('difficultyName');
-    const explanation = document.getElementById('difficultyExplanation');
-    
-    if (level === 'easy') {
-        indicator.className = 'px-3 py-1 rounded-lg font-bold bg-green-200 text-green-800';
-        indicator.textContent = '⚡ Easy';
-        description.textContent = 'Generates easy-level Q&As tailored for quick recognition';
-        name.textContent = 'Easy';
-        explanation.innerHTML = '⚡ <strong>Easy:</strong> Quick recognition, basic facts, simple examples. Perfect for fast review and building habits.';
-    } else if (level === 'medium') {
-        indicator.className = 'px-3 py-1 rounded-lg font-bold bg-yellow-200 text-yellow-800';
-        indicator.textContent = '📚 Medium';
-        description.textContent = 'Generates medium-level Q&As tailored for understanding';
-        name.textContent = 'Medium';
-        explanation.innerHTML = '📚 <strong>Medium:</strong> Shows mechanisms and WHY/HOW things work. Specific local context. Good for understanding concepts.';
-    } else if (level === 'difficult') {
-        indicator.className = 'px-3 py-1 rounded-lg font-bold bg-red-200 text-red-800';
-        indicator.textContent = '🎓 Difficult';
-        description.textContent = 'Generates difficult-level Q&As tailored for mastery';
-        name.textContent = 'Difficult';
-        explanation.innerHTML = '🎓 <strong>Difficult:</strong> Complete cause-and-effect with real-world scenarios. Deep context for exam mastery and application.';
-    }
-}
-
-async function generateAIRefines(provider) {
-    // Get selected difficulty
-    const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
-    
-    const btnBoth = document.getElementById('btnBoth');
-    const btnGemini = document.getElementById('btnGemini');
-    const btnGroq = document.getElementById('btnGroq');
-    const loading = document.getElementById('loadingState');
-    const loadingText = document.getElementById('loadingText');
-    const selectionForm = document.getElementById('selectionForm');
-    
-    // Disable all buttons
-    btnBoth.disabled = true;
-    btnGemini.disabled = true;
-    btnGroq.disabled = true;
-    btnBoth.classList.add('opacity-50', 'cursor-not-allowed');
-    btnGemini.classList.add('opacity-50', 'cursor-not-allowed');
-    btnGroq.classList.add('opacity-50', 'cursor-not-allowed');
-    
-    // Show loading with specific message
-    loading.classList.remove('hidden');
-    const difficultyLabel = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
-    if (provider === 'both') {
-        loadingText.textContent = `Generating ${difficultyLabel} level with both Gemini and Groq...`;
-    } else if (provider === 'gemini') {
-        loadingText.textContent = `Generating ${difficultyLabel} level with Gemini only...`;
-    } else if (provider === 'groq') {
-        loadingText.textContent = `Generating ${difficultyLabel} level with Groq only...`;
-    }
-    
-    try {
-        const response = await fetch('{% url "generate_ai_refine" topic.id %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: new URLSearchParams({
-                provider: provider,
-                difficulty: difficulty
-            })
-        });
-        
-        const results = await response.json();
-        
-        // Update Gemini section
-        if (results.gemini) {
-            if (results.gemini.success) {
-                document.getElementById('geminiStatus').textContent = '✓ Completed';
-                document.getElementById('geminiStatus').className = 'text-xs bg-green-200 text-green-800 px-2 py-1 rounded';
-                document.getElementById('geminiPreview').innerHTML = `
-                    <p class="text-green-700 font-bold mb-1">✓ ${results.gemini.qa_count} Q&As • ${results.gemini.processing_time}s</p>
-                    <p class="text-gray-700 text-xs">${results.gemini.preview}</p>
-                `;
-            } else {
-                document.getElementById('geminiStatus').textContent = '❌ Failed';
-                document.getElementById('geminiStatus').className = 'text-xs bg-red-200 text-red-800 px-2 py-1 rounded';
-                document.getElementById('geminiPreview').innerHTML = `<p class="text-red-600 text-xs">${results.gemini.error}</p>`;
-            }
-        }
-        
-        // Update Groq section
-        if (results.groq) {
-            if (results.groq.success) {
-                document.getElementById('groqStatus').textContent = '✓ Completed';
-                document.getElementById('groqStatus').className = 'text-xs bg-green-200 text-green-800 px-2 py-1 rounded';
-                document.getElementById('groqPreview').innerHTML = `
-                    <p class="text-green-700 font-bold mb-1">✓ ${results.groq.qa_count} Q&As • ${results.groq.processing_time}s</p>
-                    <p class="text-gray-700 text-xs">${results.groq.preview}</p>
-                `;
-            } else {
-                document.getElementById('groqStatus').textContent = '❌ Failed';
-                document.getElementById('groqStatus').className = 'text-xs bg-red-200 text-red-800 px-2 py-1 rounded';
-                document.getElementById('groqPreview').innerHTML = `<p class="text-red-600 text-xs">${results.groq.error}</p>`;
-            }
-        }
-        
-        // Show selection form if at least one succeeded
-        if ((results.gemini && results.gemini.success) || (results.groq && results.groq.success)) {
-            selectionForm.classList.remove('hidden');
-        }
-        
-        // Reload page to show full results and regenerate buttons
-        setTimeout(() => window.location.reload(), 1500);
-        
-    } catch (error) {
-        alert('Error generating AI refines: ' + error.message);
-    } finally {
-        loading.classList.add('hidden');
-        btnBoth.disabled = false;
-        btnGemini.disabled = false;
-        btnGroq.disabled = false;
-        btnBoth.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnGemini.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnGroq.classList.remove('opacity-50', 'cursor-not-allowed');
-    }
+// ONLY ONE SIMPLE FUNCTION - Toggle course fields
+function toggleCourseFields() {
+    const option = document.querySelector('input[name="course_option"]:checked').value;
+    document.getElementById('existingCourse').disabled = option === 'new';
+    document.getElementById('newCourseFields').classList.toggle('hidden', option === 'existing');
 }
 </script>
 {% endblock %}
