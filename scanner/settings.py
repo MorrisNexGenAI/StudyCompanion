@@ -3,6 +3,8 @@ import os
 import dj_database_url
 from dotenv import load_dotenv
 
+
+AUTH_USER_MODEL = 'core.AdminUser'
 # =========================
 # Load environment variables
 # =========================
@@ -186,3 +188,15 @@ if not DEBUG:
 # Default PK
 # =========================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# =========================
+# Authentication Settings (ADD AT THE END OF settings.py)
+# =========================
+LOGIN_URL = 'core:admin_login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'core:admin_login'
+
+# Session settings - Keep users logged in
+SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
+SESSION_SAVE_EVERY_REQUEST = False  # Only save when modified
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep logged in after browser close

@@ -4,6 +4,7 @@ API views - Public API endpoints for mobile app
 """
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
+from django.utils import timezone
 
 from ..models import Course, Topic, Department
 from ..utils.ocr import test_ocr_connection
@@ -86,4 +87,167 @@ def ocr_status(request):
     """Check OCR service health status"""
     is_healthy, message = test_ocr_connection()
     return JsonResponse({'healthy': is_healthy, 'message': message})
+
+
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from premium_users.models import PremiumUser
+import json
+
+@login_required(login_url='core:admin_login')
+@require_http_methods(["GET"])
+def api_admin_bulk_download(request):
+    """
+    ADMIN ONLY - Download ALL content for offline distribution.
+    
+    Returns:
+    {
+        "departments": [...],
+        "courses": [...],
+        "topics": [...],
+        "premium_users": [...],
+        "sync_timestamp": 1737244800
+    }
+    """
+    # Get all departments
+    departments = list(Department.objects.values('id', 'name'))
+    
+    # Get all courses (not deleted)
+    courses = Course.objects.filter(is_deleted=False).prefetch_related('departments')
+    courses_data = []
+    for course in courses:
+        courses_data.append({
+            'id': course.id,
+            'name': course.name,
+            'year': course.year,
+            'departments': [d.id for d in course.departments.all()],
+            'created_at': int(course.created_at.timestamp()),
+            'updated_at': int(course.updated_at.timestamp()),
+        })
+    
+    # Get all topics (not deleted)
+    topics = Topic.objects.filter(is_deleted=False).select_related('course')
+    topics_data = []
+    for topic in topics:
+        topics_data.append({
+            'id': topic.id,
+            'course_id': topic.course.id,
+            'title': topic.title,
+            'page_range': topic.page_range,
+            'refined_summary': topic.refined_summary,
+            'raw_text': topic.raw_text,
+            'is_premium': topic.is_premium,
+            'difficulty_level': topic.difficulty_level,
+            'order': topic.order,
+            'created_at': int(topic.created_at.timestamp()),
+            'updated_at': int(topic.updated_at.timestamp()),
+        })
+    
+    # Get all active premium users
+    premium_users = list(
+        PremiumUser.objects.filter(is_active=True).values(
+            'id', 'name', 'code', 'department_id'
+        )
+    )
+    
+    return JsonResponse({
+        'departments': departments,
+        'courses': courses_data,
+        'topics': topics_data,
+        'premium_users': premium_users,
+        'sync_timestamp': int(timezone.now().timestamp()),
+        'total_topics': len(topics_data),
+        'total_users': len(premium_users),
+    })
+
+
+@login_required(login_url='core:admin_login')
+@require_http_methods(["POST"])
+def api_admin_upload_users(request):
+    """
+    ADMIN ONLY - Upload user registrations collected offline.
+    
+    Expects:
+    {
+        "users": [
+            {"name": "John Doe", "code": "JD23", "department_id": 5},
+            ...
+        ]
+    }
+    
+    Returns:
+    {
+        "created": 5,
+        "duplicates": 2,
+        "errors": []
+    }
+    """
+    try:
+        data = json.loads(request.body)
+        users_data = data.get('users', [])
+        
+        created_count = 0
+        duplicate_count = 0
+        errors = []
+        
+        for user_data in users_data:
+            try:
+                name = user_data.get('name', '').strip()
+                code = user_data.get('code', '').strip().upper()
+                department_id = user_data.get('department_id')
+                
+                # Validate
+                if not name or not code:
+                    errors.append(f"Missing name or code: {user_data}")
+                    continue
+                
+                if len(code) != 4:
+                    errors.append(f"Invalid code length for {name}: {code}")
+                    continue
+                
+                # Check if user already exists
+                if PremiumUser.objects.filter(name=name, code=code).exists():
+                    duplicate_count += 1
+                    continue
+                
+                # Get department
+                department = None
+                if department_id:
+                    try:
+                        department = Department.objects.get(id=department_id)
+                    except Department.DoesNotExist:
+                        errors.append(f"Department {department_id} not found for {name}")
+                        continue
+                
+                # Create user
+                PremiumUser.objects.create(
+                    name=name,
+                    code=code,
+                    department=department,
+                    is_active=True
+                )
+                created_count += 1
+                
+            except Exception as e:
+                errors.append(f"Error creating user {user_data}: {str(e)}")
+        
+        return JsonResponse({
+            'success': True,
+            'created': created_count,
+            'duplicates': duplicate_count,
+            'errors': errors,
+            'total_processed': len(users_data)
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON format'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
 

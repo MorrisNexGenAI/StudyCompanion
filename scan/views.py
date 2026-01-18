@@ -41,3 +41,4 @@ from .views_functions import (
     api_department_courses,
     ocr_status,
 )
+
