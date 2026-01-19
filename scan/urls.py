@@ -11,7 +11,7 @@ from .urls_patterns import (
     api_urlpatterns,
     ai_urlpatterns,
     utility_urlpatterns,
-    premium_urlpatterns,
+    
 )
 
 urlpatterns = [
@@ -33,6 +33,5 @@ urlpatterns = [
     # ============= UTILITIES =============
     *utility_urlpatterns,
     
-    # ============= PREMIUM USER MANAGEMENT =============
-    *premium_urlpatterns,
+   
 ]

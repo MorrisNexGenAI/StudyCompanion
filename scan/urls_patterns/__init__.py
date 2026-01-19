@@ -10,7 +10,7 @@ from .topic_urls import topic_urlpatterns
 from .api_urls import api_urlpatterns
 from .ai_urls import ai_urlpatterns
 from .utility_urls import utility_urlpatterns
-from .premium_urls import premium_urlpatterns
+
 
 __all__ = [
     'web_urlpatterns',
@@ -19,6 +19,5 @@ __all__ = [
     'api_urlpatterns',
     'ai_urlpatterns',
     'utility_urlpatterns',
-    'premium_urlpatterns',
 ]
 
