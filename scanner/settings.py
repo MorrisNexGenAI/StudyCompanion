@@ -203,6 +203,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # =========================
 # Authentication Settings
 # =========================
-LOGIN_URL = 'core:admin_login'
-LOGIN_REDIRECT_URL = 'core:account_settings'  # safe redirect
-LOGOUT_REDIRECT_URL = 'core:admin_login'
+# =========================
+# Authentication Settings
+# =========================
+LOGIN_URL = '/backend/login/'  # Changed from 'core:admin_login'
+LOGIN_REDIRECT_URL = '/backend/account/'
+LOGOUT_REDIRECT_URL = '/backend/login/'

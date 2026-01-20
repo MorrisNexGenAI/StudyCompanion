@@ -9,14 +9,11 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('auth/', include('core.urls')),           # ADD THIS - Authentication URLs
-    path('premium/', include('premium_users.urls')),  # Premium users
-    path('', include('scan.urls')),                # Main app URLs
+    path('backend/', include('core.urls')),        # HTML admin login at /backend/login/
+    path('api/', include('scan.urls_patterns.api_urls')),  # API endpoints at /api/auth/login/
+    path('premium/', include('premium_users.urls')),
+    path('', include('scan.urls')),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-
-
-    
