@@ -3,8 +3,11 @@ import os
 import dj_database_url
 from dotenv import load_dotenv
 
-
+# =========================
+# Custom User
+# =========================
 AUTH_USER_MODEL = 'core.AdminUser'
+
 # =========================
 # Load environment variables
 # =========================
@@ -22,11 +25,16 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.environ.get(
-  "ALLOWED_HOSTS",
-  "localhost,127.0.0.1,http://10.248.248.46:8000",
-).split(",")
-#ALLOWED_HOSTS = ["*"] 
+# =========================
+# Allowed Hosts (no protocols, no ports)
+# =========================
+ALLOWED_HOSTS = [
+    "studycompanion-fzrm.onrender.com",  # backend
+    "admincarrier.netlify.app",           # primary frontend
+    "studycompanions.netlify.app",        # secondary frontend
+    "localhost",
+    "127.0.0.1",
+]
 
 # =========================
 # Installed Apps
@@ -70,36 +78,29 @@ MIDDLEWARE = [
 ]
 
 # =========================
-# CORS Configuration (CRITICAL FIX)
+# CORS Configuration
 # =========================
 CORS_ALLOWED_ORIGINS = [
+    "https://admincarrier.netlify.app",
+    "https://studycompanions.netlify.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://0.0.0.0:8000",
-    "http://10.248.248.46:8000",
-    "https://studycompanions.netlify.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
 # Allow custom headers
 from corsheaders.defaults import default_headers
-
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    'X-User-ID',
-]
+CORS_ALLOW_HEADERS = list(default_headers) + ['X-User-ID']
 
 # =========================
 # CSRF Configuration
 # =========================
-CSRF_TRUSTED_ORIGINS = [ 
+CSRF_TRUSTED_ORIGINS = [
+    "https://admincarrier.netlify.app",
+    "https://studycompanions.netlify.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://10.248.248.46:8000",
-    "http://0.0.0.0:8000",
-    "https://studycompanions.netlify.app",
 ]
 
 # =========================
@@ -152,7 +153,6 @@ else:
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
@@ -185,18 +185,24 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
 
 # =========================
+# Session / Cookie Settings (cross-domain)
+# =========================
+SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_SAVE_EVERY_REQUEST = False
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# =========================
 # Default PK
 # =========================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # =========================
-# Authentication Settings (ADD AT THE END OF settings.py)
+# Authentication Settings
 # =========================
 LOGIN_URL = 'core:admin_login'
-LOGIN_REDIRECT_URL = 'home'
+LOGIN_REDIRECT_URL = 'core:account_settings'  # safe redirect
 LOGOUT_REDIRECT_URL = 'core:admin_login'
-
-# Session settings - Keep users logged in
-SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
-SESSION_SAVE_EVERY_REQUEST = False  # Only save when modified
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep logged in after browser close
