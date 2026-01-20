@@ -7,7 +7,7 @@ Each module handles a specific URL group.
 from .web_urls import web_urlpatterns
 from .course_urls import course_urlpatterns
 from .topic_urls import topic_urlpatterns
-from .api_urls import api_urlpatterns
+from .api_urls import urlpatterns
 from .ai_urls import ai_urlpatterns
 from .utility_urls import utility_urlpatterns
 
@@ -16,7 +16,7 @@ __all__ = [
     'web_urlpatterns',
     'course_urlpatterns',
     'topic_urlpatterns',
-    'api_urlpatterns',
+    'urlpatterns',
     'ai_urlpatterns',
     'utility_urlpatterns',
 ]

@@ -9,10 +9,9 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('backend/', include('core.urls')),        # HTML admin login at /backend/login/
-    path('api/', include('scan.urls_patterns.api_urls')),  # API endpoints at /api/auth/login/
+    path('backend/', include('core.urls')),        # /backend/login/
     path('premium/', include('premium_users.urls')),
-    path('', include('scan.urls')),
+    path('', include('scan.urls')),                # All other scan URLs
 ]
 
 if settings.DEBUG:
